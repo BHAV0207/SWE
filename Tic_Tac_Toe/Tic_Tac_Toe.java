@@ -5,12 +5,6 @@ class Tic_Tac_Toe {
     Game game = new Game(3, "bhav", "siddham");
     game.displayBoard();
     game.start();
-
-    // game.makeMove(0, 0); // Bhav plays
-    // game.displayBoard();
-
-    // game.makeMove(1, 1); // Siddham plays
-    // game.displayBoard();
   }
 }
 
@@ -55,18 +49,76 @@ class Game {
     } else {
       board[r][c] = currentPlayer.getSymbol();
       currentPlayerIndex = 1 - currentPlayerIndex;
+      return true;
+    }
+  }
+
+  private boolean winner(Player player) {
+    for (int i = 0; i < size; i++) {
+      boolean rowWin = true;
+      for (int j = 0; j < size; j++) {
+        if (board[i][j] != player.getSymbol()) {
+          rowWin = false;
+          break;
+        }
+      }
+      if (rowWin)
+        return true;
     }
 
-    return true;
+    for (int i = 0; i < size; i++) {
+      boolean colWin = true;
+      for (int j = 0; j < size; j++) {
+        if (board[j][i] != player.getSymbol()) {
+          colWin = false;
+          break;
+        }
+      }
+      if (colWin)
+        return true;
+    }
+
+    boolean digWin = true;
+    for (int i = 0; i < size; i++) {
+      if (board[i][i] != player.getSymbol()) {
+        digWin = false;
+        break;
+      }
+
+    }
+    if (digWin)
+      return true;
+
+    boolean anDigWin = true;
+    for (int i = 0; i < size; i++) {
+      if (board[i][size - 1 - i] != player.getSymbol()) {
+        anDigWin = false;
+        break;
+      }
+    }
+    if (anDigWin)
+      return true;
+
+    return false;
+
   }
 
   public void start() {
     Scanner sc = new Scanner(System.in);
     for (int i = 0; i < size * size; i++) {
+      System.out.print(players[currentPlayerIndex].getName() + "'s" + " turn");
       int moveRow = sc.nextInt();
       int moveCol = sc.nextInt();
-      makeMove(moveRow, moveCol);
+      boolean success = makeMove(moveRow, moveCol);
+      if (success == false) {
+        System.out.println("invalid move please try again");
+        i--;
+      }
       displayBoard();
+      if (winner(players[1 - currentPlayerIndex])) {
+        System.out.println(players[1 - currentPlayerIndex].getName() + " wins!");
+        break;
+      }
     }
   }
 }
