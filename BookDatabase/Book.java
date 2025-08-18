@@ -1,6 +1,6 @@
-enum Genre {
-  FICTION, NONFICTION
-}
+// enum Genre {
+//   FICTION, NONFICTION
+// }
 
 public class Book {
   private String name;
@@ -9,9 +9,9 @@ public class Book {
   private int reviews;
   private float price;
   private int year;
-  private Genre genre;
+  private String genre;
 
-  Book(String name, String author, float userRating, int reviews, float price, int year, Genre genre) {
+  public Book(String name, String author, float userRating, int reviews, float price, int year, String genre) {
     this.name = name;
     this.author = author;
     this.userRating = userRating;
@@ -45,7 +45,14 @@ public class Book {
     return year;
   }
 
-  public Genre getGenre() {
+  public String getGenre() {
     return genre;
+  }
+
+  @Override
+  public String toString() {
+    return "Book{name='" + name + "', author='" + author + "', rating=" + userRating +
+        ", reviews=" + reviews + ", price=" + price + ", year=" + year +
+        ", genre=" + genre + "}";
   }
 }
