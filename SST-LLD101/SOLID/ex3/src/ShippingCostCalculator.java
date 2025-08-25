@@ -28,31 +28,3 @@ class OvernightDeliveryType implements PolicyCost {
   }
 
 }
-
-class Shipment {
-  private String type;
-  private double weightKg;
-
-  Shipment(String type, double w) {
-    this.type = type;
-    this.weightKg = w;
-  }
-
-  public String getTypeDetails() {
-    return type;
-  }
-
-  public double getWeightDetails() {
-    return weightKg;
-  }
-}
-
-class Demo03 {
-  public static void main(String[] args) {
-    Shipment shipment = new Shipment("EXPRESS", 100.0);
-    PolicyCost policy = new ExpressDeliveryType();
-
-    ShippingCostCalculator calculator = new ShippingCostCalculator();
-    System.out.println(calculator.cost(policy, shipment));
-  }
-}
