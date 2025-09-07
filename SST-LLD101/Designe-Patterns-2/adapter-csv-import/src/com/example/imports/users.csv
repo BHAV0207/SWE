@@ -1,0 +1,8 @@
+1,john@example.com,John Doe
+2,jane@example.com,Jane Smith
+3,invalid-email,Bob Johnson
+4,alice@company.com,Alice Brown
+,missing@id.com,Missing ID
+5,,Empty Email
+6,test@valid.org,Valid User
+7,bob@company.net,Bob Wilson
