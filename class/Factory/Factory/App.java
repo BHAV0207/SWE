@@ -1,3 +1,5 @@
+package Factory;
+
 interface Notification {
   void send();
 }
