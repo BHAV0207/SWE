@@ -1,0 +1,51 @@
+1. The Problem
+
+Imagine you’re working in an app where creating an object is costly:
+
+It might require fetching data from a database.
+
+Or running some heavy computation.
+
+Or setting lots of properties.
+
+If you need 10 copies of that object, creating each one from scratch will be slow and wasteful.
+
+2. The Idea of Prototype
+
+Instead of creating objects again and again, we:
+
+Create one original object (called the prototype).
+
+Use it as a blueprint.
+
+Make clones (copies) whenever needed.
+
+This is Prototype Pattern — clone instead of creating.
+
+3. Analogy
+
+Think of a document template in Word:
+
+You design one resume template (set fonts, margins, sections).
+
+When you need another resume, you copy the template instead of starting from scratch.
+
+That’s exactly what Prototype does for objects.
+
+4. In Java
+
+Java gives us Cloneable and clone() method for this.
+
+Cloneable is just a marker interface → says “This class can be cloned”.
+
+clone() method → makes a copy of the object.
+
+
+
+👉 So the rule of thumb:
+Use Prototype when creating objects is “expensive” and you just need many similar copies.
+
+
+💡 Rule of Thumb:
+If your object has only primitive types (int, double, String) → shallow copy is fine.
+If it contains mutable objects (lists, maps, other objects) → implement deep copy carefully.
