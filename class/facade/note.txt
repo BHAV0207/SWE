@@ -1,0 +1,44 @@
+1. What is Facade?
+
+Think of a hotel concierge.
+
+You don’t book taxis, order food, or find tickets yourself.
+
+You just talk to the concierge (simple interface), and they handle all the complexity behind the scenes.
+
+That’s Facade Pattern → it provides a simple unified interface to a complex subsystem.
+
+2. Why do we need it?
+
+Without facade: the client must know and call many subsystem classes in the right order → tightly coupled, hard to use.
+With facade: client calls one class with high-level methods, which delegates to subsystems.
+
+3. When to use it?
+
+When you have a complicated library / subsystem and want to expose only a clean API to clients.
+
+To decouple client code from complex inner workings.
+
+When you want to follow the principle of least knowledge → client doesn’t need to know every detail.
+
+4. Example
+
+Imagine a Home Theater System:
+
+Subsystems:
+
+DVDPlayer
+
+Projector
+
+SoundSystem
+
+Lights
+
+Without facade, client must manually start each.
+With Facade, you just call:
+
+homeTheater.watchMovie("Inception");
+
+
+And behind the scenes, the facade turns off lights, starts projector, DVD player, and sound system.
