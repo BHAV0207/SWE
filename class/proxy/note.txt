@@ -1,0 +1,78 @@
+Nice — let’s unpack Proxy slowly and clearly so it actually clicks. I’ll explain what it is, why it’s useful, walk the Image (virtual proxy) example step-by-step, list other proxy types with short examples, show pitfalls and implementation tips (thread-safety, caching, etc.), and finish with a tiny set of practice choices. One question at the end so we can keep the session interactive.
+
+What is the Proxy pattern? (plain English)
+
+A Proxy is a stand-in object that implements the same interface as some real object and controls access to that real object. The client talks to the proxy — not directly to the heavy/real object — and the proxy decides what to do (forward, block, cache, lazy-load, log, etc.).
+
+Analogy: you call a hotel concierge (proxy) instead of contacting dozens of services yourself (real subsystems). The concierge decides what to call and when.
+
+Core pieces (roles)
+
+Subject — the interface used by client (e.g., Image with display()).
+
+RealSubject — the real object that does the actual work and may be expensive.
+
+Proxy — same interface, holds a reference to RealSubject, adds extra behavior (lazy init, access control, caching, logging).
+
+Client — talks to Subject (could be proxy or real subject).
+
+Simple UML-ish view:
+
+Client -> (Subject) Proxy -> RealSubject
+
+Why use Proxy? (common reasons)
+
+Lazy initialization (Virtual Proxy): don’t build the heavy object until it’s needed.
+
+Access control / Security: check permissions before forwarding.
+
+Remote proxy: provide a local stub for a remote object (e.g., RMI).
+
+Caching / Smart reference: store results so repeated calls are faster.
+
+Logging / Monitoring / Throttling: track or limit calls.
+
+Deep dive — Virtual proxy image example (step-by-step)
+
+We’ll use the Image example you saw. I’ll annotate the call sequence.
+
+Classes:
+
+interface Image { void display(); }
+
+class RealImage implements Image {
+  private String filename;
+  public RealImage(String filename) {
+    this.filename = filename;
+    loadFromDisk();          // expensive work
+  }
+  private void loadFromDisk() { System.out.println("Loading " + filename); }
+  public void display() { System.out.println("Displaying " + filename); }
+}
+
+class ProxyImage implements Image {
+  private String filename;
+  private RealImage realImage; // initially null
+
+  public ProxyImage(String filename) { this.filename = filename; }
+
+  public void display() {
+    if (realImage == null) {
+      realImage = new RealImage(filename); // create only when needed
+    }
+    realImage.display();
+  }
+}
+
+
+Call trace (explanation):
+
+new ProxyImage("photo.png") → only the proxy object is created. realImage is null. No heavy work done.
+
+proxy.display() is called: Proxy checks if (realImage == null) → true, so it constructs RealImage("photo.png"). That runs loadFromDisk() (expensive).
+
+Proxy calls realImage.display() → shows the image.
+
+If proxy.display() is called again, proxy sees realImage != null and does not load from disk again — it directly forwards to realImage.display().
+
+Advantages shown: expensive loadFromDisk() invoked only when needed, and only once.
