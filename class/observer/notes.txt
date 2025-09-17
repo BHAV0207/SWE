@@ -1,0 +1,16 @@
+Step 1: Build Intuition
+
+Imagine YouTube subscriptions.
+You subscribe to a channel (you’re an observer).
+The channel (the subject) uploads a new video.
+You (and all subscribers) automatically get notified.
+
+👉 Key point: The subject doesn’t care who the observers are — it just says, “Hey, I changed!” and notifies everyone.
+
+
+
+Step 2: Structure of Observer
+
+Subject (Publisher) → keeps a list of observers, provides attach(), detach(), and notify().
+Observer → has an update() method.
+Concrete Observers → actual subscribers who react when notified.
