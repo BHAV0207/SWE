@@ -1,0 +1,102 @@
+1. The Intuition
+
+Think of coffee at a café:
+
+You start with a simple coffee (base object).
+
+Then you can decorate it with milk, sugar, whipped cream, caramel, etc.
+
+Each add-on adds new behavior (cost, description) without changing the base class.
+
+That’s what the Decorator pattern does:
+
+Attach new functionality to an object dynamically.
+
+Achieve this via composition, not inheritance.
+
+2. Where/When to Use It
+
+When you want to add features without exploding subclasses.
+
+Example: Instead of CoffeeWithMilk, CoffeeWithSugar, CoffeeWithMilkAndSugar, …
+
+Use a decorator chain.
+
+When behavior needs to be combined flexibly.
+
+GUI frameworks, stream APIs, and middleware use it heavily.
+
+3. Structure
+
+Component: Interface (e.g., Coffee)
+
+ConcreteComponent: Real object (e.g., SimpleCoffee)
+
+Decorator: Abstract class implementing the same interface, holding a reference to the component.
+
+ConcreteDecorators: Add actual features (e.g., MilkDecorator, SugarDecorator).
+
+
+
+DIFFERENCE BETWEEN BUILDER AND DECORATOR 
+
+
+🔨 Builder Pattern
+
+Goal: Help construct complex objects step by step.
+
+When to use: When an object has many optional configurations.
+
+How it works:
+
+You use a builder object with methods like .addCheese() or .setGPU().
+
+Finally call .build() to get the finished product.
+
+Key idea: Focus is on object creation.
+
+After build: Object is usually immutable.
+
+✅ Example:
+Creating a Computer with optional GPU, RAM, storage, etc.
+
+Computer gamingPC = new Computer.Builder("Intel i9", 32)
+                       .storage(1000)
+                       .gpu("RTX 4090")
+                       .build();
+
+🎨 Decorator Pattern
+
+Goal: Dynamically add responsibilities (behavior/attributes) to objects at runtime.
+
+When to use: When you need to extend behavior flexibly without subclass explosion.
+
+How it works:
+
+You wrap the original object in one or more decorator classes.
+
+Each decorator adds new functionality (+milk, +sugar, etc.).
+
+Key idea: Focus is on object extension (wrapping), not creation.
+
+After decoration: Object can be wrapped further → open-ended flexibility.
+
+✅ Example:
+
+Coffee coffee = new SimpleCoffee();
+coffee = new MilkDecorator(coffee);   // add milk
+coffee = new SugarDecorator(coffee);  // add sugar
+
+🔑 Key Differences
+Aspect	Builder 🏗️	Decorator 🎁
+Purpose	Construct complex objects step by step	Extend behavior of existing objects dynamically
+Focus	Object creation	Object modification/wrapping
+When used	At object build time	At object runtime
+End result	A finished immutable object	An object that can keep getting new functionality
+Example analogy	Ordering a custom-built computer	Adding toppings to your coffee
+
+👉 Simple way to remember:
+
+Builder = how you make it
+
+Decorator = how you dress it up
