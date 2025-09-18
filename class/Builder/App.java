@@ -56,7 +56,6 @@ final class Pizza {
   public void Describe() {
     System.out.println(this.size);
     System.out.println(this.cheese);
-
   }
 
 }
