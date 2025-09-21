@@ -10,6 +10,8 @@ Or setting lots of properties.
 
 If you need 10 copies of that object, creating each one from scratch will be slow and wasteful.
 
+
+
 2. The Idea of Prototype
 
 Instead of creating objects again and again, we:
@@ -22,6 +24,8 @@ Make clones (copies) whenever needed.
 
 This is Prototype Pattern — clone instead of creating.
 
+
+
 3. Analogy
 
 Think of a document template in Word:
@@ -31,6 +35,8 @@ You design one resume template (set fonts, margins, sections).
 When you need another resume, you copy the template instead of starting from scratch.
 
 That’s exactly what Prototype does for objects.
+
+
 
 4. In Java
 

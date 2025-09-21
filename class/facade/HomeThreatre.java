@@ -33,17 +33,10 @@ class Lights {
 }
 
 class Facade {
-  private DVDPlayer dvd;
-  private Projector projector;
-  private SoundSystem sound;
-  private Lights lights;
-
-  Facade(DVDPlayer dvd, Projector projector, SoundSystem sound, Lights lights) {
-    this.dvd = dvd;
-    this.projector = projector;
-    this.sound = sound;
-    this.lights = lights;
-  }
+  private DVDPlayer dvd = new DVDPlayer();
+  private Projector projector = new Projector();
+  private SoundSystem sound = new SoundSystem();
+  private Lights lights = new Lights();
 
   public void watchMovie(String movie) {
     System.out.println("Get ready to watch a movie...");
@@ -64,7 +57,7 @@ class Facade {
 
 public class HomeThreatre {
   public static void main(String[] args) {
-    Facade fac = new Facade(new DVDPlayer(), new Projector(), new SoundSystem(), new Lights());
+    Facade fac = new Facade();
 
     fac.watchMovie("inception");
     fac.endMovie();

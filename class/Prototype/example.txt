@@ -1,0 +1,219 @@
+ witout Repository => 
+
+
+public class User implements ClonableObject<User> {
+    private long userId;
+    private String username;
+    private String email;
+    private String displayName;
+    private int age;
+    private UserType type;
+
+    public User(long userId, String username, String email, String displayName, int age, UserType type) {
+        this.userId = userId;
+        this.username = username;
+        this.email = email;
+        this.displayName = displayName;
+        this.age = age;
+        this.type = type;
+    }
+
+    @Override
+    public User cloneObject() {
+        return new User(userId, username, email, displayName, age, type);
+    }
+
+    public String getEmail() { return email; }
+    public UserType getType() { return type; }
+}
+
+package tests;
+
+import com.assignment.question.*;
+
+public class LoginTest {
+    public static void main(String[] args) {
+        // Define prototypes manually
+        User adminPrototype = new User(1, "admin", "admin@test.com", "Admin", 40, UserType.ADMIN);
+
+        User admin1 = adminPrototype.cloneObject();
+        User admin2 = adminPrototype.cloneObject();
+
+        System.out.println("Login Test Admin1: " + admin1.getEmail());
+    }
+}
+
+
+
+package tests;
+
+import com.assignment.question.*;
+
+public class FeedTest {
+    public static void main(String[] args) {
+        // Define prototypes again
+        User readerPrototype = new User(2, "reader", "reader@test.com", "Reader", 22, UserType.READER);
+
+        User reader1 = readerPrototype.cloneObject();
+        User reader2 = readerPrototype.cloneObject();
+
+        System.out.println("Feed Test Reader1: " + reader1.getEmail());
+    }
+}
+
+
+
+package tests;
+
+import com.assignment.question.*;
+
+public class PostTest {
+    public static void main(String[] args) {
+        // Define prototypes AGAIN
+        User writerPrototype = new User(3, "writer", "writer@test.com", "Writer", 28, UserType.WRITER);
+
+        User writer1 = writerPrototype.cloneObject();
+        User writer2 = writerPrototype.cloneObject();
+
+        System.out.println("Post Test Writer1: " + writer1.getEmail());
+    }
+}
+
+
+
+🔴 Problem:
+
+admin@test.com appears in LoginTest.
+
+reader@test.com appears in FeedTest.
+
+writer@test.com appears in PostTest.
+
+If tomorrow we change the email domain from @test.com → @mock.com, we must fix every file.
+
+
+
+
+
+
+
+
+
+WITH REPOSITORY => 
+
+package com.assignment.question;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class UserPrototypeRegistryImpl implements UserPrototypeRegistry {
+    private Map<UserType, User> prototypes = new HashMap<>();
+
+    @Override
+    public void addPrototype(User user) {
+        prototypes.put(user.getType(), user);
+    }
+
+    @Override
+    public User getPrototype(UserType type) {
+        return prototypes.get(type);
+    }
+
+    @Override
+    public User clone(UserType type) {
+        User prototype = prototypes.get(type);
+        if (prototype == null) {
+            throw new IllegalArgumentException("No prototype for: " + type);
+        }
+        return prototype.cloneObject();
+    }
+}
+
+
+
+package tests;
+
+import com.assignment.question.*;
+
+public class TestSetup {
+    private static UserPrototypeRegistry registry;
+
+    static {
+        registry = new UserPrototypeRegistryImpl();
+        registry.addPrototype(new User(1, "admin", "admin@mock.com", "Admin", 35, UserType.ADMIN));
+        registry.addPrototype(new User(2, "reader", "reader@mock.com", "Reader", 22, UserType.READER));
+        registry.addPrototype(new User(3, "writer", "writer@mock.com", "Writer", 28, UserType.WRITER));
+    }
+
+    public static UserPrototypeRegistry getRegistry() {
+        return registry;
+    }
+}
+
+
+
+package tests;
+
+import com.assignment.question.*;
+
+public class LoginTest {
+    public static void main(String[] args) {
+        UserPrototypeRegistry registry = TestSetup.getRegistry();
+
+        User admin1 = registry.clone(UserType.ADMIN);
+        User admin2 = registry.clone(UserType.ADMIN);
+
+        System.out.println("Login Test Admin1: " + admin1.getEmail());
+    }
+}
+
+
+
+
+package tests;
+
+import com.assignment.question.*;
+
+public class FeedTest {
+    public static void main(String[] args) {
+        UserPrototypeRegistry registry = TestSetup.getRegistry();
+
+        User reader1 = registry.clone(UserType.READER);
+        User reader2 = registry.clone(UserType.READER);
+
+        System.out.println("Feed Test Reader1: " + reader1.getEmail());
+    }
+}
+
+
+package tests;
+
+import com.assignment.question.*;
+
+public class PostTest {
+    public static void main(String[] args) {
+        UserPrototypeRegistry registry = TestSetup.getRegistry();
+
+        User writer1 = registry.clone(UserType.WRITER);
+        User writer2 = registry.clone(UserType.WRITER);
+
+        System.out.println("Post Test Writer1: " + writer1.getEmail());
+    }
+}
+
+
+
+✅ Now:
+
+Prototypes live only in TestSetup.java.
+
+All tests pull from the same registry.
+
+If tomorrow Admin’s default email changes → update just once in TestSetup.java, all tests adapt.
+
+🌱 The Difference in One Line
+
+Without Registry → prototypes are scattered across files (hard to maintain).
+
+With Registry → prototypes are centralized and shared (easy to maintain).
+
