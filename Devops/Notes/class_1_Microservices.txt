@@ -5,3 +5,7 @@ between the srevices there are two types of communication that is sync and async
 in async communication there is the possibility of eventual consistency , whihc in some cases is unacceptable where we need immediate responses etc....
 in the a async communication there are two types that are , pub sub and queue based , in the pub sub the subscriber is notified when there is something publishes by the publisher
 in async communiation we dont need load balancer 
+
+
+
+

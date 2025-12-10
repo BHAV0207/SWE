@@ -1,0 +1,17 @@
+name: Compile Java Exercises
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile all Demo files
+        run: |
+          set -e
+          find SOLID -type f -name "Demo*.java" | while read f; do
+            d=$(dirname "$f")
+            echo "Compiling $f"
+            (cd "$d" && javac "$(basename "$f")")
+          done
