@@ -1,0 +1,38 @@
+[
+  {
+    "id": "1",
+    "title": "Severe Weather Warning",
+    "description": "Heavy rain expected in the next 24 hours. Stay indoors and avoid unnecessary travel.",
+    "type": "high",
+    "date": "2025-01-09"
+  },
+  {
+    "id": "2",
+    "title": "Traffic Alert",
+    "description": "Major road closure on Main Street due to construction. Use alternate routes.",
+    "type": "medium",
+    "date": "2025-01-09"
+  },
+  {
+    "id": "3",
+    "title": "Public Health Notice",
+    "description": "Free vaccination clinic available at City Hall this weekend.",
+    "type": "low",
+    "date": "2025-01-08"
+  },
+  {
+    "id": "4",
+    "title": "Power Outage",
+    "description": "Scheduled maintenance in downtown area from 10 PM to 2 AM tonight.",
+    "type": "medium",
+    "date": "2025-01-08"
+  },
+  {
+    "id": "5",
+    "title": "Emergency Services Update",
+    "description": "Fire department conducting safety inspections in residential areas.",
+    "type": "low",
+    "date": "2025-01-07"
+  }
+]
+
