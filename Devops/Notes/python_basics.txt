@@ -1,0 +1,16 @@
+python is a high level language 
+it is a open-source comunity driven language 
+it is dynamically typed language ->  the type checking is done at runtime and not at compile time , which menas that eg -> x =10 and then we write that x = "hello" it will not give any error at compile time , it will figure the type at the rutime 
+
+
+python is a object oriented laguage , so it has datatypes and obects 
+the datatypes are integer , string , float , boolean etc....
+the objects are the collection of datatypes ->  lists , dictionary , Tuples/Set etc...
+
+Lists ->  basically an array , in python a list can be of multiple datatypes , eg -> a = [1,2,3,4,"hey" ,5]
+
+Tuples -> are immutable in nature unlike the list , eg -> a = (1,2,3,"hello", 6.8, 3)
+
+sets -> are hashset of java -> {}
+
+dictionary -> are hashmap of java -> {}
