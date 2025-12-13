@@ -8,9 +8,33 @@ the datatypes are integer , string , float , boolean etc....
 the objects are the collection of datatypes ->  lists , dictionary , Tuples/Set etc...
 
 Lists ->  basically an array , in python a list can be of multiple datatypes , eg -> a = [1,2,3,4,"hey" ,5]
-
 Tuples -> are immutable in nature unlike the list , eg -> a = (1,2,3,"hello", 6.8, 3)
-
 sets -> are hashset of java -> {}
-
 dictionary -> are hashmap of java -> {}
+
+
+CONDITIONALS 
+if , elif , else 
+for loop -> for i in range(10)...etc
+
+MODULES 
+these are the packages that we can use to do several things , these provides us with functions and attributes that we can use 
+we can also create our own packages 
+
+FILE HANDLING 
+one of the most important basic of file handeling is that whenever you are reading a file you must close it in the end to prevent memory leak 
+r -> read only 
+r+ -> read and write 
+eg-> f = open('data.txt' , 'r')  // this is only in the read mode 
+
+
+ERROR 
+to deal with errors we can use , try and except blocks 
+eg -> try: 
+        print(a/b)
+      except: 
+        print("something went wrong")
+
+COMPILER AND INTERPRITER
+compiler is a program that converters the whole code into maching language at the compile time and checks for any mistake 
+a interpreter is a program that does not take the whole like the compiler , rather it takes the code line by line and executes the code 

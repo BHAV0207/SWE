@@ -15,8 +15,10 @@ print(tuple_a)
 set_a = {1,2,3,4,5,6,7,8,9,10,1,2,3,4,5}
 print(set_a)
 
-dict_a = {"name":"bhavya",
-          "age":20,
-          "is_student":True}
+dict_a = {
+        "name":"bhavya",
+        "age":20,
+        "is_student":True
+        }
 print(dict_a) 
 
