@@ -1,0 +1,17 @@
+# dependencies
+node_modules/
+
+# environment variables
+.env
+
+# uploads (optional - you might want to keep this if you want to track uploaded images)
+# uploads/
+
+# logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
