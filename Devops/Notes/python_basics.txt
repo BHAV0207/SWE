@@ -37,4 +37,4 @@ eg -> try:
 
 COMPILER AND INTERPRITER
 compiler is a program that converters the whole code into maching language at the compile time and checks for any mistake 
-a interpreter is a program that does not take the whole like the compiler , rather it takes the code line by line and executes the code 
+a interpreter is a program that does not take the whole code like the compiler , rather it takes the code line by line and executes the code which means that there can be different data tyoes of different variable at the start and by the end of the code
