@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 const FormPage = () => {
   const [formData, SetformData] = React.useState({
@@ -6,6 +7,8 @@ const FormPage = () => {
     email: "",
     age: "",
   });
+  const [error, setError] = React.useState("");
+  const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     SetformData((prevData) => {
@@ -13,9 +16,31 @@ const FormPage = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log(formData);
+    setError("");
+
+    try {
+      const res = await fetch("http://localhost:5000/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Something went wrong");
+        return;
+      }
+
+      // ✅ Redirect on success
+      navigate("/success");
+    } catch (err) {
+      setError("Failed to submit form");
+    }
   };
   return (
     <section className="w-full min-h-screen">
