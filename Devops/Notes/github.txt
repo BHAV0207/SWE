@@ -1,0 +1,5 @@
+github and git are not the same , we use git to manipulate the code , to store it we use github
+
+//SSH KEYS
+so what ssh key does is that it connects your git to your github on a machine , suppose you have two laptops and you want to use your github on those machines , so what you will do is you will have to setup ssh in both the machines to connect git and github 
+there can be multiple ssh keys , one for eaxh machine from which you use  github

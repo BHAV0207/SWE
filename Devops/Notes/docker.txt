@@ -1,0 +1,36 @@
+docker is a containerization platform whihc helps to package files and its dependencies 
+
+container is the place where all the (files and its dependencies) ie images are stored , which can be used anywhere 
+
+docker is not like virtual machine , unlike vm docker does is very lightweight , and the dependencies are taken care by docker , just use the right images whereas in vm you have to setup everything 
+in vm you have its own os which takes a lot of space and load on machine , whereas docker use the machines os itself and build the image 
+ony drawback of docker here is that yo dont get a desktop like vm , you get only the terminal here 
+
+// COMMANDS 
+
+docker pull imageName => To  pull any image from the docker we use the command 
+docker images => to get the list of all the images in the syatem 
+docker ps => give sthe list of all the running containers 
+docker ps -a => all the list of current and past containers 
+docker run => runs the image and makes a conatiner of it 
+docker run -it => force run 
+docker stop containerId => to stop the conatiner  
+dokcer start =>  once you hav reuunde a container then , you should do docker start from the next time 
+
+PORT MAPPING 
+to connect the docker image to the local machine or to see the respones of it on the local machine we use port mapping 
+we know that suppose we are running nginx on docker , but if we want to use it on are local we will have to port mapping
+
+command =>  run -it -p 8080:80 nginx 
+in the above command  we have mapped the local port to the docker internal port 
+
+
+docker exec -it constaineId => this command helps run any command from loacal directly to the docker enviroment 
+eg -> docker exec -it conatinerID ls 
+
+docker inspect constainerId => gives the imfo about the conatainer 
+
+// DOCKERFILE 
+dockerfile is a set of instruction on how to build the docker image 
+it is a file in the project 
+
