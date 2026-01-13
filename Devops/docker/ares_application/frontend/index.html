@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ares Application | User List</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="background-blob blob-1"></div>
+    <div class="background-blob blob-2"></div>
+    
+    <main class="container">
+        <header class="hero">
+            <h1>Ares Application</h1>
+            <p>Managing and displaying our team members with precision.</p>
+        </header>
+
+        <section class="content-card">
+            <div class="card-header">
+                <h2>Team Directory</h2>
+                <button id="refresh-btn" class="btn-refresh">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path></svg>
+                    Refresh List
+                </button>
+            </div>
+
+            <div id="loading" class="loading-state">
+                <div class="spinner"></div>
+                <p>Fetching data from Ares API...</p>
+            </div>
+
+            <div id="error-message" class="error-state hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                <p>Failed to connect to the backend. Please ensure the server is running.</p>
+            </div>
+
+            <ul id="names-list" class="names-grid hidden">
+                <!-- Names will be injected here -->
+            </ul>
+
+            <div id="empty-state" class="empty-state hidden">
+                <p>No team members found.</p>
+            </div>
+        </section>
+
+        <footer>
+            <p>&copy; 2026 Ares Devops. Built for clarity and speed.</p>
+        </footer>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

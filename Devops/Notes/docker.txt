@@ -34,3 +34,6 @@ docker inspect constainerId => gives the imfo about the conatainer
 dockerfile is a set of instruction on how to build the docker image 
 it is a file in the project 
 
+// docker-compost.yml is the file whihc is at the root of the project and is used to connect and bind all the services over the same network and run the services togeteher , all the servides have their own docker file 
+
+// docker volumes => like an internal database for docker 
