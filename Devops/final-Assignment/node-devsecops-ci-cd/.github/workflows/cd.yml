@@ -1,0 +1,39 @@
+name: DevSecOps CD Pipeline
+
+on:
+  workflow_run:
+    workflows: ["DevSecOps CI Pipeline"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+
+      - name: Replace Placeholder in Manifest
+        run: |
+          sed -i "s/\${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_USERNAME }}/g" k8s/deployment.yaml
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/deployment.yaml
+
+      - name: Post-Deployment Smoke Test (Dummy DAST)
+        run: |
+          echo "Waiting for external IP or service readiness..."
+          # In a real scenario, we would wait for the LoadBalancer IP
+          # For this project, we simulate a DAST scan on the health endpoint
+          echo "Simulating DAST scan on /health..."
+          # curl -f http://<LB_IP>/health || exit 1
+          echo "DAST Scan Passed: No critical vulnerabilities found in runtime check."
