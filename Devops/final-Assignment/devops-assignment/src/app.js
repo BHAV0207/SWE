@@ -5,7 +5,7 @@ const userRoutes = require("./routes/userRoutes");
 app.use(express.json());
 
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
+  res.status(200).json({ status: "OK" });
 });
 
 app.use("/users", userRoutes);

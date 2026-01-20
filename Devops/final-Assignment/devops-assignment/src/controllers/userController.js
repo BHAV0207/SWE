@@ -9,7 +9,7 @@ const createUser = async (req, res) => {
 
     const user = await User.create({ name, email });
     res.status(201).json(user);
-  } catch (err) {
+  } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
