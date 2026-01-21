@@ -13,6 +13,7 @@ import {
     TasksScreen,
     NotesScreen,
     ProfileScreen,
+    ReportsScreen,
 } from '../screens';
 
 const Stack = createNativeStackNavigator();
@@ -120,7 +121,10 @@ export const AppNavigator: React.FC = () => {
         <NavigationContainer theme={DarkTheme}>
             <Stack.Navigator screenOptions={{ headerShown: false }}>
                 {isAuthenticated ? (
-                    <Stack.Screen name="Main" component={MainTabs} />
+                    <>
+                        <Stack.Screen name="Main" component={MainTabs} />
+                        <Stack.Screen name="Reports" component={ReportsScreen} />
+                    </>
                 ) : (
                     <Stack.Screen name="Auth" component={AuthStack} />
                 )}

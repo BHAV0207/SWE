@@ -11,13 +11,15 @@ import {
     TextInput,
     ScrollView,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute, useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, borderRadius } from '../theme/theme';
 import { NoteCard, Button, LoadingSpinner } from '../components';
 import { notesAPI } from '../api/client';
 import type { Note } from '../components';
 
 export const NotesScreen: React.FC = () => {
+    const route = useRoute<any>();
+    const navigation = useNavigation<any>();
     const [notes, setNotes] = useState<Note[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -48,7 +50,14 @@ export const NotesScreen: React.FC = () => {
     useFocusEffect(
         useCallback(() => {
             fetchNotes();
-        }, [])
+
+            // Check for auto-open action
+            if (route.params?.action === 'create') {
+                openModal();
+                // Clear the param
+                navigation.setParams({ action: undefined });
+            }
+        }, [route.params])
     );
 
     const onRefresh = async () => {
@@ -131,6 +140,14 @@ export const NotesScreen: React.FC = () => {
 
     return (
         <View style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+                <Text style={styles.title}>Notes</Text>
+                <TouchableOpacity style={styles.addButton} onPress={() => openModal()}>
+                    <Text style={styles.addButtonText}>+</Text>
+                </TouchableOpacity>
+            </View>
+
             {/* Search Bar */}
             <View style={styles.searchContainer}>
                 <TextInput

@@ -7,7 +7,7 @@ import {
     RefreshControl,
     TouchableOpacity,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, borderRadius, shadows } from '../theme/theme';
 import { Card, LoadingSpinner } from '../components';
 import { useAuth } from '../context/AuthContext';
@@ -16,6 +16,7 @@ import type { Task } from '../components';
 
 export const DashboardScreen: React.FC = () => {
     const { user } = useAuth();
+    const navigation = useNavigation<any>();
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -100,30 +101,36 @@ export const DashboardScreen: React.FC = () => {
                     <Text style={styles.greeting}>{getGreeting()},</Text>
                     <Text style={styles.userName}>{user?.name || 'User'} 👋</Text>
                 </View>
-                <View style={styles.avatarContainer}>
+                <TouchableOpacity
+                    style={styles.avatarContainer}
+                    onPress={() => navigation.navigate('Profile')}
+                >
                     <Text style={styles.avatar}>
                         {user?.name?.charAt(0).toUpperCase() || 'U'}
                     </Text>
-                </View>
+                </TouchableOpacity>
             </View>
 
             {/* Quick Actions */}
             <View style={styles.quickActions}>
                 <TouchableOpacity
                     style={styles.actionButton}
-                    onPress={() => (global as any).navigation?.navigate('Tasks')}
+                    onPress={() => navigation.navigate('Tasks', { action: 'create' })}
                 >
                     <Text style={styles.actionIcon}>➕</Text>
                     <Text style={styles.actionLabel}>New Task</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={styles.actionButton}
-                    onPress={() => (global as any).navigation?.navigate('Notes')}
+                    onPress={() => navigation.navigate('Notes', { action: 'create' })}
                 >
                     <Text style={styles.actionIcon}>📝</Text>
                     <Text style={styles.actionLabel}>Add Note</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton}>
+                <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => navigation.navigate('Reports')}
+                >
                     <Text style={styles.actionIcon}>📊</Text>
                     <Text style={styles.actionLabel}>Report</Text>
                 </TouchableOpacity>

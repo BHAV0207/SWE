@@ -11,7 +11,7 @@ import {
     TextInput,
     ScrollView,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute, useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, borderRadius } from '../theme/theme';
 import { TaskCard, Button, LoadingSpinner } from '../components';
 import { tasksAPI, notesAPI } from '../api/client';
@@ -20,6 +20,8 @@ import type { Task, Note } from '../components';
 type FilterType = 'all' | 'pending' | 'completed';
 
 export const TasksScreen: React.FC = () => {
+    const route = useRoute<any>();
+    const navigation = useNavigation<any>();
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -65,7 +67,14 @@ export const TasksScreen: React.FC = () => {
     useFocusEffect(
         useCallback(() => {
             fetchTasks();
-        }, [])
+
+            // Check for auto-open action
+            if (route.params?.action === 'create') {
+                openModal();
+                // Clear the param
+                navigation.setParams({ action: undefined });
+            }
+        }, [route.params])
     );
 
     const onRefresh = async () => {
