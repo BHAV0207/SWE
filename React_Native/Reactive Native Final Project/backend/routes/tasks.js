@@ -9,6 +9,7 @@ const Note = require('../models/Note');
 // @access  Private
 router.post('/', auth, async (req, res) => {
     try {
+        console.log('Creating task with body:', req.body);
         const newTask = new Task({
             userId: req.user.id,
             title: req.body.title,
@@ -19,7 +20,8 @@ router.post('/', auth, async (req, res) => {
         });
 
         const task = await newTask.save();
-        res.json({ ...task._doc, noteCount: 0 });
+        console.log('Saved task:', task);
+        res.json({ ...task.toJSON(), noteCount: 0 });
     } catch (err) {
         console.error('Task creation error details:', err);
         res.status(500).json({ msg: 'Server Error', error: err.message });
@@ -35,7 +37,7 @@ router.get('/', auth, async (req, res) => {
 
         const tasksWithNoteCount = await Promise.all(tasks.map(async (task) => {
             const count = await Note.countDocuments({ taskId: task._id });
-            return { ...task._doc, noteCount: count };
+            return { ...task.toJSON(), noteCount: count };
         }));
 
         res.json(tasksWithNoteCount);
@@ -59,6 +61,7 @@ router.put('/:id', auth, async (req, res) => {
             return res.status(401).json({ msg: 'Not authorized' });
         }
 
+        console.log('Updating task with body:', req.body);
         task = await Task.findByIdAndUpdate(
             req.params.id,
             { $set: req.body },
@@ -87,9 +90,12 @@ router.delete('/:id', auth, async (req, res) => {
             return res.status(401).json({ msg: 'Not authorized' });
         }
 
+        // Delete all notes associated with this task
+        await Note.deleteMany({ taskId: req.params.id });
+
         await Task.findByIdAndDelete(req.params.id);
 
-        res.json({ msg: 'Task removed' });
+        res.json({ msg: 'Task and associated notes removed' });
     } catch (err) {
         console.error('Delete task error details:', err);
         res.status(500).json({ msg: 'Server Error', error: err.message });

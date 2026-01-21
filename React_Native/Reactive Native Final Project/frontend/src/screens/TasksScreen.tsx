@@ -44,6 +44,7 @@ export const TasksScreen: React.FC = () => {
     const fetchTasks = async () => {
         try {
             const response = await tasksAPI.getAll();
+            console.log('Fetched tasks from API:', response.data);
             setTasks(response.data);
         } catch (error) {
             console.error('Failed to fetch tasks:', error);
@@ -179,10 +180,26 @@ export const TasksScreen: React.FC = () => {
                     priority,
                     category,
                 });
-                setTasks(prev => [response.data, ...prev]);
+                const newTask = response.data;
+
+                // Create any pending notes for this new task
+                if (taskNotes.length > 0) {
+                    for (const note of taskNotes) {
+                        if (note._id.startsWith('temp_')) {
+                            await notesAPI.create({
+                                content: note.content,
+                                taskId: newTask._id,
+                            });
+                        }
+                    }
+                    newTask.noteCount = taskNotes.length;
+                }
+
+                setTasks(prev => [newTask, ...prev]);
             }
             closeModal();
         } catch (error) {
+            console.error('Save task error:', error);
             Alert.alert('Error', 'Failed to save task');
         } finally {
             setSaving(false);
@@ -190,27 +207,40 @@ export const TasksScreen: React.FC = () => {
     };
 
     const handleAddNoteToTask = async () => {
-        if (!newNoteContent.trim() || !editingTask) return;
+        if (!newNoteContent.trim()) return;
 
-        setAddingNote(true);
-        try {
-            const response = await notesAPI.create({
+        if (editingTask) {
+            setAddingNote(true);
+            try {
+                const response = await notesAPI.create({
+                    content: newNoteContent.trim(),
+                    taskId: editingTask._id,
+                });
+                setTaskNotes(prev => [response.data, ...prev]);
+                setNewNoteContent('');
+
+                // Also update the note count for the task in the list
+                setTasks(prev => prev.map(t =>
+                    t._id === editingTask._id
+                        ? { ...t, noteCount: (t.noteCount || 0) + 1 }
+                        : t
+                ));
+            } catch (error) {
+                Alert.alert('Error', 'Failed to add note');
+            } finally {
+                setAddingNote(false);
+            }
+        } else {
+            // For new tasks, just add to local state with a temp ID
+            const tempNote: Note = {
+                _id: 'temp_' + Date.now(),
                 content: newNoteContent.trim(),
-                taskId: editingTask._id,
-            });
-            setTaskNotes(prev => [response.data, ...prev]);
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                taskId: null
+            } as any;
+            setTaskNotes(prev => [tempNote, ...prev]);
             setNewNoteContent('');
-
-            // Also update the note count for the task in the list
-            setTasks(prev => prev.map(t =>
-                t._id === editingTask._id
-                    ? { ...t, noteCount: (t.noteCount || 0) + 1 }
-                    : t
-            ));
-        } catch (error) {
-            Alert.alert('Error', 'Failed to add note');
-        } finally {
-            setAddingNote(false);
         }
     };
 
@@ -427,46 +457,44 @@ export const TasksScreen: React.FC = () => {
                                 {renderPriorityButton('high', 'High')}
                             </View>
 
-                            {editingTask && (
-                                <View style={styles.notesSection}>
-                                    <Text style={styles.inputLabel}>Notes</Text>
+                            <View style={styles.notesSection}>
+                                <Text style={styles.inputLabel}>Notes</Text>
 
-                                    <View style={styles.addNoteContainer}>
-                                        <TextInput
-                                            style={styles.addNoteInput}
-                                            placeholder="Add a linked note..."
-                                            placeholderTextColor={colors.textMuted}
-                                            value={newNoteContent}
-                                            onChangeText={setNewNoteContent}
-                                            multiline
-                                        />
-                                        <TouchableOpacity
-                                            style={[styles.addNoteBtn, !newNoteContent.trim() && styles.addNoteBtnDisabled]}
-                                            onPress={handleAddNoteToTask}
-                                            disabled={addingNote || !newNoteContent.trim()}
-                                        >
-                                            <Text style={styles.addNoteBtnText}>
-                                                {addingNote ? '...' : '+'}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
-
-                                    {taskNotes.length > 0 ? (
-                                        <View style={styles.notesList}>
-                                            {taskNotes.map(note => (
-                                                <View key={note._id} style={styles.linkedNoteItem}>
-                                                    <Text style={styles.linkedNoteText}>{note.content}</Text>
-                                                    <Text style={styles.linkedNoteDate}>
-                                                        {new Date(note.createdAt).toLocaleDateString()}
-                                                    </Text>
-                                                </View>
-                                            ))}
-                                        </View>
-                                    ) : (
-                                        <Text style={styles.noNotesText}>No linked notes yet</Text>
-                                    )}
+                                <View style={styles.addNoteContainer}>
+                                    <TextInput
+                                        style={styles.addNoteInput}
+                                        placeholder="Add a linked note..."
+                                        placeholderTextColor={colors.textMuted}
+                                        value={newNoteContent}
+                                        onChangeText={setNewNoteContent}
+                                        multiline
+                                    />
+                                    <TouchableOpacity
+                                        style={[styles.addNoteBtn, !newNoteContent.trim() && styles.addNoteBtnDisabled]}
+                                        onPress={handleAddNoteToTask}
+                                        disabled={addingNote || !newNoteContent.trim()}
+                                    >
+                                        <Text style={styles.addNoteBtnText}>
+                                            {addingNote ? '...' : '+'}
+                                        </Text>
+                                    </TouchableOpacity>
                                 </View>
-                            )}
+
+                                {taskNotes.length > 0 ? (
+                                    <View style={styles.notesList}>
+                                        {taskNotes.map(note => (
+                                            <View key={note._id} style={styles.linkedNoteItem}>
+                                                <Text style={styles.linkedNoteText}>{note.content}</Text>
+                                                <Text style={styles.linkedNoteDate}>
+                                                    {new Date(note.createdAt).toLocaleDateString()}
+                                                </Text>
+                                            </View>
+                                        ))}
+                                    </View>
+                                ) : (
+                                    <Text style={styles.noNotesText}>No linked notes yet</Text>
+                                )}
+                            </View>
 
                             {editingTask && (
                                 <TouchableOpacity

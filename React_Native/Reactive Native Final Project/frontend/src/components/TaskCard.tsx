@@ -114,7 +114,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                         </Text>
                     </View>
                     {task.noteCount !== undefined && task.noteCount > 0 && (
-                        <Text style={styles.noteCount}>📝 {task.noteCount}</Text>
+                        <View style={styles.noteBadge}>
+                            <Text style={styles.noteCountText}>📝 {task.noteCount}</Text>
+                        </View>
                     )}
                     {task.dueDate && (
                         <Text style={styles.dueDate}>📅 {formatDate(task.dueDate)}</Text>
@@ -191,10 +193,18 @@ const styles = StyleSheet.create({
         ...typography.caption,
         color: colors.textSecondary,
     },
-    noteCount: {
-        ...typography.caption,
+    noteBadge: {
+        backgroundColor: colors.surfaceLight,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 2,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.surfaceBorder,
+    },
+    noteCountText: {
+        fontSize: 10,
+        fontWeight: '700',
         color: colors.primary,
-        fontWeight: '600',
     },
     categoryIcon: {
         fontSize: 14,
