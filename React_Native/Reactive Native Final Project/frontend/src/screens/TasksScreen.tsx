@@ -349,34 +349,38 @@ export const TasksScreen: React.FC = () => {
             </View>
 
             {/* Category Filter Chips */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.categoryFilterScroll}
-                contentContainerStyle={styles.categoryFilterContent}
-            >
-                {['all', 'work', 'personal', 'health', 'shopping', 'other'].map((cat) => (
-                    <TouchableOpacity
-                        key={cat}
-                        style={[
-                            styles.categoryChip,
-                            categoryFilter === cat && styles.categoryChipActive
-                        ]}
-                        onPress={() => setCategoryFilter(cat as any)}
-                    >
-                        <Text style={[
-                            styles.categoryChipText,
-                            categoryFilter === cat && styles.categoryChipTextActive
-                        ]}>
-                            {cat === 'all' ? '🏷️ All' :
-                                cat === 'work' ? '💼 Work' :
-                                    cat === 'personal' ? '👤 Personal' :
-                                        cat === 'health' ? '🏥 Health' :
-                                            cat === 'shopping' ? '🛒 Shop' : '🏷️ Other'}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
+            <View style={styles.categoryFilterContainer}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.categoryFilterContent}
+                >
+                    {['all', 'work', 'personal', 'health', 'shopping', 'other'].map((cat) => (
+                        <TouchableOpacity
+                            key={cat}
+                            style={[
+                                styles.categoryChip,
+                                categoryFilter === cat && styles.categoryChipActive
+                            ]}
+                            onPress={() => setCategoryFilter(cat as any)}
+                        >
+                            <Text style={styles.categoryChipEmoji}>
+                                {cat === 'all' ? '🏷️' :
+                                    cat === 'work' ? '💼' :
+                                        cat === 'personal' ? '👤' :
+                                            cat === 'health' ? '🏥' :
+                                                cat === 'shopping' ? '🛒' : '🏷️'}
+                            </Text>
+                            <Text style={[
+                                styles.categoryChipText,
+                                categoryFilter === cat && styles.categoryChipTextActive
+                            ]}>
+                                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
 
             {/* Task List */}
             <FlatList
@@ -767,7 +771,7 @@ const styles = StyleSheet.create({
     categoryButton: {
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
-        borderRadius: borderRadius.md,
+        borderRadius: borderRadius.full,
         backgroundColor: colors.surfaceLight,
         alignItems: 'center',
         flexDirection: 'row',
@@ -784,7 +788,7 @@ const styles = StyleSheet.create({
     },
     categoryButtonText: {
         ...typography.bodySecondary,
-        fontWeight: '500',
+        fontWeight: '600',
     },
     // Search styles
     searchContainer: {
@@ -801,14 +805,17 @@ const styles = StyleSheet.create({
         borderColor: colors.surfaceBorder,
     },
     // Category Filter styles
-    categoryFilterScroll: {
+    categoryFilterContainer: {
         marginBottom: spacing.md,
     },
     categoryFilterContent: {
         paddingHorizontal: spacing.lg,
         gap: spacing.sm,
+        alignItems: 'center',
     },
     categoryChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         borderRadius: borderRadius.full,
@@ -820,9 +827,13 @@ const styles = StyleSheet.create({
         backgroundColor: colors.primaryMuted,
         borderColor: colors.primary,
     },
+    categoryChipEmoji: {
+        fontSize: 16,
+        marginRight: spacing.xs,
+    },
     categoryChipText: {
         ...typography.bodySecondary,
-        fontWeight: '500',
+        fontWeight: '600',
         color: colors.textSecondary,
     },
     categoryChipTextActive: {
