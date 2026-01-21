@@ -10,6 +10,8 @@ export interface Task {
     dueDate?: string;
     isCompleted: boolean;
     createdAt: string;
+    noteCount?: number;
+    category?: 'work' | 'personal' | 'health' | 'shopping' | 'other';
 }
 
 interface TaskCardProps {
@@ -58,6 +60,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         });
     };
 
+    const getCategoryIcon = () => {
+        switch (task.category) {
+            case 'work': return '💼';
+            case 'personal': return '👤';
+            case 'health': return '🏥';
+            case 'shopping': return '🛒';
+            default: return '🏷️';
+        }
+    };
+
     return (
         <TouchableOpacity
             style={[styles.card, task.isCompleted && styles.completedCard]}
@@ -90,6 +102,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                     </Text>
                 )}
                 <View style={styles.metaRow}>
+                    <Text style={styles.categoryIcon}>{getCategoryIcon()}</Text>
                     <View
                         style={[
                             styles.priorityBadge,
@@ -100,6 +113,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                             {task.priority.toUpperCase()}
                         </Text>
                     </View>
+                    {task.noteCount !== undefined && task.noteCount > 0 && (
+                        <Text style={styles.noteCount}>📝 {task.noteCount}</Text>
+                    )}
                     {task.dueDate && (
                         <Text style={styles.dueDate}>📅 {formatDate(task.dueDate)}</Text>
                     )}
@@ -174,5 +190,14 @@ const styles = StyleSheet.create({
     dueDate: {
         ...typography.caption,
         color: colors.textSecondary,
+    },
+    noteCount: {
+        ...typography.caption,
+        color: colors.primary,
+        fontWeight: '600',
+    },
+    categoryIcon: {
+        fontSize: 14,
+        marginRight: spacing.xs,
     },
 });

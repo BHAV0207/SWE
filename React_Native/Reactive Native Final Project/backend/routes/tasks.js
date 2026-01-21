@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const Task = require('../models/Task');
+const Note = require('../models/Note');
 
 // @route   POST /api/tasks
 // @desc    Create a task
@@ -13,11 +14,12 @@ router.post('/', auth, async (req, res) => {
             title: req.body.title,
             description: req.body.description,
             priority: req.body.priority,
-            dueDate: req.body.dueDate
+            dueDate: req.body.dueDate,
+            category: req.body.category
         });
 
         const task = await newTask.save();
-        res.json(task);
+        res.json({ ...task._doc, noteCount: 0 });
     } catch (err) {
         console.error('Task creation error details:', err);
         res.status(500).json({ msg: 'Server Error', error: err.message });
@@ -30,7 +32,13 @@ router.post('/', auth, async (req, res) => {
 router.get('/', auth, async (req, res) => {
     try {
         const tasks = await Task.find({ userId: req.user.id }).sort({ createdAt: -1 });
-        res.json(tasks);
+
+        const tasksWithNoteCount = await Promise.all(tasks.map(async (task) => {
+            const count = await Note.countDocuments({ taskId: task._id });
+            return { ...task._doc, noteCount: count };
+        }));
+
+        res.json(tasksWithNoteCount);
     } catch (err) {
         console.error('Fetch tasks error details:', err);
         res.status(500).json({ msg: 'Server Error', error: err.message });
@@ -57,7 +65,8 @@ router.put('/:id', auth, async (req, res) => {
             { new: true }
         );
 
-        res.json(task);
+        const count = await Note.countDocuments({ taskId: task._id });
+        res.json({ ...task._doc, noteCount: count });
     } catch (err) {
         console.error('Update task error details:', err);
         res.status(500).json({ msg: 'Server Error', error: err.message });

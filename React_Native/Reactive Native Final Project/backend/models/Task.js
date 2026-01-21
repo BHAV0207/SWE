@@ -25,6 +25,11 @@ const TaskSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    category: {
+        type: String,
+        enum: ['work', 'personal', 'health', 'shopping', 'other'],
+        default: 'other'
+    },
     createdAt: {
         type: Date,
         default: Date.now

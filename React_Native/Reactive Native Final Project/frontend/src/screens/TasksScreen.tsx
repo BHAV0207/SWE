@@ -14,8 +14,8 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, typography, borderRadius } from '../theme/theme';
 import { TaskCard, Button, LoadingSpinner } from '../components';
-import { tasksAPI } from '../api/client';
-import type { Task } from '../components';
+import { tasksAPI, notesAPI } from '../api/client';
+import type { Task, Note } from '../components';
 
 type FilterType = 'all' | 'pending' | 'completed';
 
@@ -24,6 +24,8 @@ export const TasksScreen: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [filter, setFilter] = useState<FilterType>('all');
+    const [categoryFilter, setCategoryFilter] = useState<'all' | 'work' | 'personal' | 'health' | 'shopping' | 'other'>('all');
+    const [searchQuery, setSearchQuery] = useState('');
     const [modalVisible, setModalVisible] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
 
@@ -31,7 +33,13 @@ export const TasksScreen: React.FC = () => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
+    const [category, setCategory] = useState<'work' | 'personal' | 'health' | 'shopping' | 'other'>('other');
     const [saving, setSaving] = useState(false);
+
+    // Linked notes state
+    const [taskNotes, setTaskNotes] = useState<Note[]>([]);
+    const [newNoteContent, setNewNoteContent] = useState('');
+    const [addingNote, setAddingNote] = useState(false);
 
     const fetchTasks = async () => {
         try {
@@ -41,6 +49,15 @@ export const TasksScreen: React.FC = () => {
             console.error('Failed to fetch tasks:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchTaskNotes = async (taskId: string) => {
+        try {
+            const response = await notesAPI.getAll(taskId);
+            setTaskNotes(response.data);
+        } catch (error) {
+            console.error('Failed to fetch task notes:', error);
         }
     };
 
@@ -57,9 +74,19 @@ export const TasksScreen: React.FC = () => {
     };
 
     const filteredTasks = tasks.filter(task => {
-        if (filter === 'pending') return !task.isCompleted;
-        if (filter === 'completed') return task.isCompleted;
-        return true;
+        // Status filter
+        const matchesStatus = filter === 'all' ||
+            (filter === 'pending' && !task.isCompleted) ||
+            (filter === 'completed' && task.isCompleted);
+
+        // Category filter
+        const matchesCategory = categoryFilter === 'all' || task.category === categoryFilter;
+
+        // Search filter
+        const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
+
+        return matchesStatus && matchesCategory && matchesSearch;
     });
 
     const handleToggleComplete = async (task: Task) => {
@@ -103,11 +130,15 @@ export const TasksScreen: React.FC = () => {
             setTitle(task.title);
             setDescription(task.description || '');
             setPriority(task.priority);
+            setCategory(task.category || 'other');
+            fetchTaskNotes(task._id);
         } else {
             setEditingTask(null);
             setTitle('');
             setDescription('');
             setPriority('medium');
+            setCategory('other');
+            setTaskNotes([]);
         }
         setModalVisible(true);
     };
@@ -118,6 +149,9 @@ export const TasksScreen: React.FC = () => {
         setTitle('');
         setDescription('');
         setPriority('medium');
+        setCategory('other');
+        setTaskNotes([]);
+        setNewNoteContent('');
     };
 
     const handleSaveTask = async () => {
@@ -133,6 +167,7 @@ export const TasksScreen: React.FC = () => {
                     title: title.trim(),
                     description: description.trim(),
                     priority,
+                    category,
                 });
                 setTasks(prev =>
                     prev.map(t => (t._id === editingTask._id ? response.data : t))
@@ -142,6 +177,7 @@ export const TasksScreen: React.FC = () => {
                     title: title.trim(),
                     description: description.trim(),
                     priority,
+                    category,
                 });
                 setTasks(prev => [response.data, ...prev]);
             }
@@ -150,6 +186,31 @@ export const TasksScreen: React.FC = () => {
             Alert.alert('Error', 'Failed to save task');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleAddNoteToTask = async () => {
+        if (!newNoteContent.trim() || !editingTask) return;
+
+        setAddingNote(true);
+        try {
+            const response = await notesAPI.create({
+                content: newNoteContent.trim(),
+                taskId: editingTask._id,
+            });
+            setTaskNotes(prev => [response.data, ...prev]);
+            setNewNoteContent('');
+
+            // Also update the note count for the task in the list
+            setTasks(prev => prev.map(t =>
+                t._id === editingTask._id
+                    ? { ...t, noteCount: (t.noteCount || 0) + 1 }
+                    : t
+            ));
+        } catch (error) {
+            Alert.alert('Error', 'Failed to add note');
+        } finally {
+            setAddingNote(false);
         }
     };
 
@@ -166,6 +227,19 @@ export const TasksScreen: React.FC = () => {
             >
                 {label}
             </Text>
+        </TouchableOpacity>
+    );
+
+    const renderCategoryButton = (cat: 'work' | 'personal' | 'health' | 'shopping' | 'other', icon: string, label: string) => (
+        <TouchableOpacity
+            style={[
+                styles.categoryButton,
+                category === cat && styles.categoryButtonActive,
+            ]}
+            onPress={() => setCategory(cat)}
+        >
+            <Text style={styles.categoryButtonIcon}>{icon}</Text>
+            <Text style={styles.categoryButtonText}>{label}</Text>
         </TouchableOpacity>
     );
 
@@ -217,12 +291,53 @@ export const TasksScreen: React.FC = () => {
                 </TouchableOpacity>
             </View>
 
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search tasks..."
+                    placeholderTextColor={colors.textMuted}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                />
+            </View>
+
             {/* Filter Tabs */}
             <View style={styles.filterContainer}>
                 {renderFilterTab('all', 'All')}
                 {renderFilterTab('pending', 'Pending')}
                 {renderFilterTab('completed', 'Completed')}
             </View>
+
+            {/* Category Filter Chips */}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.categoryFilterScroll}
+                contentContainerStyle={styles.categoryFilterContent}
+            >
+                {['all', 'work', 'personal', 'health', 'shopping', 'other'].map((cat) => (
+                    <TouchableOpacity
+                        key={cat}
+                        style={[
+                            styles.categoryChip,
+                            categoryFilter === cat && styles.categoryChipActive
+                        ]}
+                        onPress={() => setCategoryFilter(cat as any)}
+                    >
+                        <Text style={[
+                            styles.categoryChipText,
+                            categoryFilter === cat && styles.categoryChipTextActive
+                        ]}>
+                            {cat === 'all' ? '🏷️ All' :
+                                cat === 'work' ? '💼 Work' :
+                                    cat === 'personal' ? '👤 Personal' :
+                                        cat === 'health' ? '🏥 Health' :
+                                            cat === 'shopping' ? '🛒 Shop' : '🏷️ Other'}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
+            </ScrollView>
 
             {/* Task List */}
             <FlatList
@@ -294,12 +409,64 @@ export const TasksScreen: React.FC = () => {
                                 numberOfLines={3}
                             />
 
+                            <Text style={styles.inputLabel}>Category</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+                                <View style={styles.categoryContainer}>
+                                    {renderCategoryButton('work', '💼', 'Work')}
+                                    {renderCategoryButton('personal', '👤', 'Personal')}
+                                    {renderCategoryButton('health', '🏥', 'Health')}
+                                    {renderCategoryButton('shopping', '🛒', 'Shop')}
+                                    {renderCategoryButton('other', '🏷️', 'Other')}
+                                </View>
+                            </ScrollView>
+
                             <Text style={styles.inputLabel}>Priority</Text>
                             <View style={styles.priorityContainer}>
                                 {renderPriorityButton('low', 'Low')}
                                 {renderPriorityButton('medium', 'Medium')}
                                 {renderPriorityButton('high', 'High')}
                             </View>
+
+                            {editingTask && (
+                                <View style={styles.notesSection}>
+                                    <Text style={styles.inputLabel}>Notes</Text>
+
+                                    <View style={styles.addNoteContainer}>
+                                        <TextInput
+                                            style={styles.addNoteInput}
+                                            placeholder="Add a linked note..."
+                                            placeholderTextColor={colors.textMuted}
+                                            value={newNoteContent}
+                                            onChangeText={setNewNoteContent}
+                                            multiline
+                                        />
+                                        <TouchableOpacity
+                                            style={[styles.addNoteBtn, !newNoteContent.trim() && styles.addNoteBtnDisabled]}
+                                            onPress={handleAddNoteToTask}
+                                            disabled={addingNote || !newNoteContent.trim()}
+                                        >
+                                            <Text style={styles.addNoteBtnText}>
+                                                {addingNote ? '...' : '+'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    {taskNotes.length > 0 ? (
+                                        <View style={styles.notesList}>
+                                            {taskNotes.map(note => (
+                                                <View key={note._id} style={styles.linkedNoteItem}>
+                                                    <Text style={styles.linkedNoteText}>{note.content}</Text>
+                                                    <Text style={styles.linkedNoteDate}>
+                                                        {new Date(note.createdAt).toLocaleDateString()}
+                                                    </Text>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    ) : (
+                                        <Text style={styles.noNotesText}>No linked notes yet</Text>
+                                    )}
+                                </View>
+                            )}
 
                             {editingTask && (
                                 <TouchableOpacity
@@ -483,5 +650,145 @@ const styles = StyleSheet.create({
         padding: spacing.lg,
         borderTopWidth: 1,
         borderTopColor: colors.surfaceBorder,
+    },
+    // New styles for notes section
+    notesSection: {
+        marginTop: spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: colors.surfaceBorder,
+        paddingTop: spacing.lg,
+    },
+    addNoteContainer: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+        marginBottom: spacing.md,
+    },
+    addNoteInput: {
+        flex: 1,
+        backgroundColor: colors.surfaceLight,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        color: colors.text,
+        fontSize: 14,
+        borderWidth: 1,
+        borderColor: colors.surfaceBorder,
+        maxHeight: 100,
+    },
+    addNoteBtn: {
+        width: 44,
+        height: 44,
+        backgroundColor: colors.primary,
+        borderRadius: borderRadius.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+        alignSelf: 'flex-end',
+    },
+    addNoteBtnDisabled: {
+        opacity: 0.5,
+        backgroundColor: colors.surfaceLight,
+    },
+    addNoteBtnText: {
+        color: colors.text,
+        fontSize: 24,
+        fontWeight: 'bold',
+    },
+    notesList: {
+        gap: spacing.sm,
+    },
+    linkedNoteItem: {
+        backgroundColor: colors.surfaceLight,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderLeftWidth: 3,
+        borderLeftColor: colors.primary,
+        marginBottom: spacing.xs,
+    },
+    linkedNoteText: {
+        ...typography.body,
+        fontSize: 14,
+        marginBottom: spacing.xs,
+    },
+    linkedNoteDate: {
+        ...typography.caption,
+        color: colors.textMuted,
+    },
+    noNotesText: {
+        ...typography.bodySecondary,
+        fontStyle: 'italic',
+        textAlign: 'center',
+        marginTop: spacing.sm,
+        marginBottom: spacing.md,
+    },
+    // Category styles
+    categoryScroll: {
+        marginBottom: spacing.md,
+    },
+    categoryContainer: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+    },
+    categoryButton: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surfaceLight,
+        alignItems: 'center',
+        flexDirection: 'row',
+        borderWidth: 1,
+        borderColor: colors.surfaceBorder,
+    },
+    categoryButtonActive: {
+        backgroundColor: colors.primaryMuted,
+        borderColor: colors.primary,
+    },
+    categoryButtonIcon: {
+        fontSize: 16,
+        marginRight: spacing.xs,
+    },
+    categoryButtonText: {
+        ...typography.bodySecondary,
+        fontWeight: '500',
+    },
+    // Search styles
+    searchContainer: {
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.sm,
+    },
+    searchInput: {
+        backgroundColor: colors.surfaceLight,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        color: colors.text,
+        fontSize: 16,
+        borderWidth: 1,
+        borderColor: colors.surfaceBorder,
+    },
+    // Category Filter styles
+    categoryFilterScroll: {
+        marginBottom: spacing.md,
+    },
+    categoryFilterContent: {
+        paddingHorizontal: spacing.lg,
+        gap: spacing.sm,
+    },
+    categoryChip: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.surfaceLight,
+        borderWidth: 1,
+        borderColor: colors.surfaceBorder,
+    },
+    categoryChipActive: {
+        backgroundColor: colors.primaryMuted,
+        borderColor: colors.primary,
+    },
+    categoryChipText: {
+        ...typography.bodySecondary,
+        fontWeight: '500',
+        color: colors.textSecondary,
+    },
+    categoryChipTextActive: {
+        color: colors.primary,
     },
 });

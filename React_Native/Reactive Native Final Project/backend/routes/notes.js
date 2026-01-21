@@ -27,7 +27,13 @@ router.post('/', auth, async (req, res) => {
 // @access  Private
 router.get('/', auth, async (req, res) => {
     try {
-        const notes = await Note.find({ userId: req.user.id }).sort({ createdAt: -1 });
+        const query = { userId: req.user.id };
+        if (req.query.taskId) {
+            query.taskId = req.query.taskId;
+        }
+        const notes = await Note.find(query)
+            .populate('taskId', 'title')
+            .sort({ createdAt: -1 });
         res.json(notes);
     } catch (err) {
         console.error('Fetch notes error details:', err);

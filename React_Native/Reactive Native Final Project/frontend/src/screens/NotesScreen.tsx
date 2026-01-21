@@ -21,12 +21,18 @@ export const NotesScreen: React.FC = () => {
     const [notes, setNotes] = useState<Note[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const [modalVisible, setModalVisible] = useState(false);
     const [editingNote, setEditingNote] = useState<Note | null>(null);
 
     // Form state
     const [content, setContent] = useState('');
     const [saving, setSaving] = useState(false);
+
+    const filteredNotes = notes.filter(note =>
+        note.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (typeof note.taskId === 'object' && note.taskId?.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
 
     const fetchNotes = async () => {
         try {
@@ -125,20 +131,23 @@ export const NotesScreen: React.FC = () => {
 
     return (
         <View style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
-                <Text style={styles.title}>My Notes</Text>
-                <TouchableOpacity style={styles.addButton} onPress={() => openModal()}>
-                    <Text style={styles.addButtonText}>+</Text>
-                </TouchableOpacity>
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search notes..."
+                    placeholderTextColor={colors.textMuted}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                />
             </View>
 
             {/* Notes count */}
-            <Text style={styles.countText}>{notes.length} notes</Text>
+            <Text style={styles.countText}>{filteredNotes.length} notes</Text>
 
             {/* Notes List */}
             <FlatList
-                data={notes}
+                data={filteredNotes}
                 keyExtractor={item => item._id}
                 renderItem={({ item }) => (
                     <NoteCard note={item} onPress={() => openModal(item)} />
@@ -327,5 +336,19 @@ const styles = StyleSheet.create({
         padding: spacing.lg,
         borderTopWidth: 1,
         borderTopColor: colors.surfaceBorder,
+    },
+    // Search styles
+    searchContainer: {
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.sm,
+    },
+    searchInput: {
+        backgroundColor: colors.surfaceLight,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        color: colors.text,
+        fontSize: 16,
+        borderWidth: 1,
+        borderColor: colors.surfaceBorder,
     },
 });

@@ -5,7 +5,10 @@ import { colors, borderRadius, spacing, typography } from '../theme/theme';
 export interface Note {
     _id: string;
     content: string;
-    taskId?: string;
+    taskId?: {
+        _id: string;
+        title: string;
+    } | string | null;
     createdAt: string;
 }
 
@@ -38,7 +41,9 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
                 <Text style={styles.date}>{formatDate(note.createdAt)}</Text>
                 {note.taskId && (
                     <View style={styles.linkedBadge}>
-                        <Text style={styles.linkedText}>📎 Linked</Text>
+                        <Text style={styles.linkedText} numberOfLines={1}>
+                            📎 {typeof note.taskId === 'object' ? note.taskId.title : 'Linked'}
+                        </Text>
                     </View>
                 )}
             </View>

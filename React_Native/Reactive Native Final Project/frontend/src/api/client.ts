@@ -1,13 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Update this to your actual backend URL
-// For physical device testing, use your computer's local IP (currently 10.51.13.88)
-// For Android emulator, use 10.0.2.2
-// For iOS simulator, use localhost
 const BASE_URL = 'http://10.51.13.88:5000/api';
-// const BASE_URL = 'http://10.0.2.2:5000/api'; 
-// const BASE_URL = 'http://localhost:5000/api'; 
+
 
 const client = axios.create({
     baseURL: BASE_URL,
@@ -80,6 +75,7 @@ export const tasksAPI = {
         description?: string;
         priority?: 'low' | 'medium' | 'high';
         dueDate?: string;
+        category?: 'work' | 'personal' | 'health' | 'shopping' | 'other';
     }) => client.post('/tasks', data),
 
     update: (id: string, data: Partial<{
@@ -88,6 +84,7 @@ export const tasksAPI = {
         priority: 'low' | 'medium' | 'high';
         dueDate: string;
         isCompleted: boolean;
+        category: 'work' | 'personal' | 'health' | 'shopping' | 'other';
     }>) => client.put(`/tasks/${id}`, data),
 
     delete: (id: string) => client.delete(`/tasks/${id}`),
@@ -95,7 +92,8 @@ export const tasksAPI = {
 
 // Notes API
 export const notesAPI = {
-    getAll: () => client.get('/notes'),
+    getAll: (taskId?: string) =>
+        client.get('/notes', { params: taskId ? { taskId } : {} }),
 
     create: (data: { content: string; taskId?: string }) =>
         client.post('/notes', data),

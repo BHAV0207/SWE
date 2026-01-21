@@ -57,6 +57,22 @@ export const DashboardScreen: React.FC = () => {
         highPriority: tasks.filter(t => t.priority === 'high' && !t.isCompleted).length,
     };
 
+    const topPriorityTasks = tasks
+        .filter(t => t.priority === 'high' && !t.isCompleted)
+        .slice(0, 3);
+
+    const weeklyData = [
+        { day: 'Mon', count: 4 },
+        { day: 'Tue', count: 7 },
+        { day: 'Wed', count: 5 },
+        { day: 'Thu', count: 8 },
+        { day: 'Fri', count: 6 },
+        { day: 'Sat', count: 3 },
+        { day: 'Sun', count: 2 },
+    ];
+
+    const maxWeekly = Math.max(...weeklyData.map(d => d.count));
+
     const completionRate = stats.total > 0
         ? Math.round((stats.completed / stats.total) * 100)
         : 0;
@@ -91,6 +107,28 @@ export const DashboardScreen: React.FC = () => {
                 </View>
             </View>
 
+            {/* Quick Actions */}
+            <View style={styles.quickActions}>
+                <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => (global as any).navigation?.navigate('Tasks')}
+                >
+                    <Text style={styles.actionIcon}>➕</Text>
+                    <Text style={styles.actionLabel}>New Task</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => (global as any).navigation?.navigate('Notes')}
+                >
+                    <Text style={styles.actionIcon}>📝</Text>
+                    <Text style={styles.actionLabel}>Add Note</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton}>
+                    <Text style={styles.actionIcon}>📊</Text>
+                    <Text style={styles.actionLabel}>Report</Text>
+                </TouchableOpacity>
+            </View>
+
             {/* Productivity Score */}
             <Card style={styles.scoreCard} variant="elevated">
                 <View style={styles.scoreHeader}>
@@ -112,6 +150,47 @@ export const DashboardScreen: React.FC = () => {
                     {stats.completed} of {stats.total} tasks completed
                 </Text>
             </Card>
+
+            {/* Weekly Progress */}
+            <Card style={styles.chartCard}>
+                <Text style={styles.sectionTitle}>Weekly Activity</Text>
+                <View style={styles.chartContainer}>
+                    {weeklyData.map((data, index) => (
+                        <View key={index} style={styles.chartBarContainer}>
+                            <View
+                                style={[
+                                    styles.chartBar,
+                                    { height: (data.count / maxWeekly) * 80 }
+                                ]}
+                            />
+                            <Text style={styles.chartDay}>{data.day}</Text>
+                        </View>
+                    ))}
+                </View>
+            </Card>
+
+            {/* Top Priority Section */}
+            {topPriorityTasks.length > 0 && (
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={[styles.sectionTitle, { color: colors.danger }]}>Top Priority</Text>
+                        <Text style={styles.sectionBadge}>Now</Text>
+                    </View>
+                    {topPriorityTasks.map((task) => (
+                        <Card key={task._id} style={{ ...styles.recentTask, ...styles.topPriorityTask }}>
+                            <View style={styles.recentTaskContent}>
+                                <View style={[styles.taskStatus, { backgroundColor: colors.dangerMuted }]}>
+                                    <Text style={[styles.taskStatusIcon, { color: colors.danger }]}>🔥</Text>
+                                </View>
+                                <View style={styles.taskInfo}>
+                                    <Text style={styles.taskTitle} numberOfLines={1}>{task.title}</Text>
+                                    <Text style={styles.taskMeta}>Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Today'}</Text>
+                                </View>
+                            </View>
+                        </Card>
+                    ))}
+                </View>
+            )}
 
             {/* Stats Grid */}
             <View style={styles.statsGrid}>
@@ -350,5 +429,75 @@ const styles = StyleSheet.create({
     emptySubtext: {
         ...typography.bodySecondary,
         textAlign: 'center',
+    },
+    // Enhancement styles
+    quickActions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: spacing.lg,
+        gap: spacing.sm,
+    },
+    actionButton: {
+        flex: 1,
+        backgroundColor: colors.surface,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        alignItems: 'center',
+        ...shadows.card,
+        borderWidth: 1,
+        borderColor: colors.surfaceBorder,
+    },
+    actionIcon: {
+        fontSize: 24,
+        marginBottom: spacing.xs,
+    },
+    actionLabel: {
+        ...typography.caption,
+        fontWeight: '600',
+    },
+    chartCard: {
+        marginBottom: spacing.lg,
+        padding: spacing.lg,
+    },
+    chartContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        height: 120,
+        paddingTop: spacing.md,
+    },
+    chartBarContainer: {
+        alignItems: 'center',
+        flex: 1,
+    },
+    chartBar: {
+        width: 12,
+        backgroundColor: colors.primary,
+        borderRadius: borderRadius.full,
+        marginBottom: spacing.xs,
+    },
+    chartDay: {
+        ...typography.caption,
+        fontSize: 10,
+        color: colors.textMuted,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: spacing.md,
+    },
+    sectionBadge: {
+        ...typography.caption,
+        backgroundColor: colors.danger,
+        color: colors.text,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 2,
+        borderRadius: borderRadius.full,
+        fontWeight: '700',
+    },
+    topPriorityTask: {
+        borderLeftWidth: 4,
+        borderLeftColor: colors.danger,
     },
 });
