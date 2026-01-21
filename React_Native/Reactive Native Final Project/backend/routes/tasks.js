@@ -19,8 +19,8 @@ router.post('/', auth, async (req, res) => {
         const task = await newTask.save();
         res.json(task);
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+        console.error('Task creation error details:', err);
+        res.status(500).json({ msg: 'Server Error', error: err.message });
     }
 });
 
@@ -32,8 +32,8 @@ router.get('/', auth, async (req, res) => {
         const tasks = await Task.find({ userId: req.user.id }).sort({ createdAt: -1 });
         res.json(tasks);
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+        console.error('Fetch tasks error details:', err);
+        res.status(500).json({ msg: 'Server Error', error: err.message });
     }
 });
 
@@ -59,8 +59,8 @@ router.put('/:id', auth, async (req, res) => {
 
         res.json(task);
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+        console.error('Update task error details:', err);
+        res.status(500).json({ msg: 'Server Error', error: err.message });
     }
 });
 
@@ -82,8 +82,8 @@ router.delete('/:id', auth, async (req, res) => {
 
         res.json({ msg: 'Task removed' });
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+        console.error('Delete task error details:', err);
+        res.status(500).json({ msg: 'Server Error', error: err.message });
     }
 });
 

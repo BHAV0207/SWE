@@ -12,11 +12,16 @@ app.use(express.json());
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/smart-productivity-app')
-    .then(() => console.log('MongoDB connected'))
-    .catch(err => console.error('MongoDB connection error:', err));
+    .then(() => {
+        console.log('MongoDB connected successfully to:', mongoose.connection.host);
+    })
+    .catch(err => {
+        console.error('MongoDB connection error:', err);
+    });
 
 // Routes
 app.get('/', (req, res) => {
+    console.log(`Base route hit: ${req.method} ${req.url}`);
     res.send('Smart Productivity App API is running');
 });
 

@@ -8,6 +8,7 @@ const User = require('../models/User');
 // @access  Public
 router.post('/register', async (req, res) => {
     const { name, email, password } = req.body;
+    console.log(`Registration attempt for: ${email}`);
 
     try {
         let user = await User.findOne({ email });
@@ -39,8 +40,8 @@ router.post('/register', async (req, res) => {
             }
         );
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
+        console.error('Registration error details:', err);
+        res.status(500).json({ msg: 'Server error', error: err.message });
     }
 });
 
@@ -77,8 +78,8 @@ router.post('/login', async (req, res) => {
             }
         );
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
+        console.error('Login error details:', err);
+        res.status(500).json({ msg: 'Server error', error: err.message });
     }
 });
 

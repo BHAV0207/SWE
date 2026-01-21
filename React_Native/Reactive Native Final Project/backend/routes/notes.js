@@ -17,8 +17,8 @@ router.post('/', auth, async (req, res) => {
         const note = await newNote.save();
         res.json(note);
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+        console.error('Note creation error details:', err);
+        res.status(500).json({ msg: 'Server Error', error: err.message });
     }
 });
 
@@ -30,8 +30,8 @@ router.get('/', auth, async (req, res) => {
         const notes = await Note.find({ userId: req.user.id }).sort({ createdAt: -1 });
         res.json(notes);
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+        console.error('Fetch notes error details:', err);
+        res.status(500).json({ msg: 'Server Error', error: err.message });
     }
 });
 
@@ -56,8 +56,8 @@ router.put('/:id', auth, async (req, res) => {
 
         res.json(note);
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+        console.error('Update note error details:', err);
+        res.status(500).json({ msg: 'Server Error', error: err.message });
     }
 });
 
@@ -78,8 +78,8 @@ router.delete('/:id', auth, async (req, res) => {
 
         res.json({ msg: 'Note removed' });
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+        console.error('Delete note error details:', err);
+        res.status(500).json({ msg: 'Server Error', error: err.message });
     }
 });
 
