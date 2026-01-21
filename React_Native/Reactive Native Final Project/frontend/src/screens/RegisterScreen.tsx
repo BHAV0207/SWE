@@ -55,7 +55,7 @@ export default function RegisterScreen({ navigation }: any) {
                     placeholderTextColor="#999"
                     value={password}
                     onChangeText={setPassword}
-                    secureTextEntry
+                    secureTextEntry={true}
                 />
 
                 <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>

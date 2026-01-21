@@ -112,7 +112,7 @@ export default function TaskDetailScreen({ route, navigation }: any) {
                     placeholder="Add some details..."
                     value={description}
                     onChangeText={setDescription}
-                    multiline
+                    multiline={true}
                     numberOfLines={4}
                 />
 
@@ -123,12 +123,12 @@ export default function TaskDetailScreen({ route, navigation }: any) {
                             key={p}
                             style={[
                                 styles.priorityBtn,
-                                priority === p && styles.priorityBtnSelected,
-                                priority === p && { backgroundColor: getPriorityColor(p) }
+                                priority === p ? styles.priorityBtnSelected : {},
+                                priority === p ? { backgroundColor: getPriorityColor(p) } : {}
                             ]}
                             onPress={() => setPriority(p)}
                         >
-                            <Text style={[styles.priorityBtnText, priority === p && styles.textWhite]}>
+                            <Text style={[styles.priorityBtnText, priority === p ? styles.textWhite : {}]}>
                                 {p}
                             </Text>
                         </TouchableOpacity>
@@ -137,7 +137,7 @@ export default function TaskDetailScreen({ route, navigation }: any) {
 
                 {isEditing && (
                     <TouchableOpacity
-                        style={[styles.saveBtn, { backgroundColor: task?.isCompleted ? '#FFB300' : '#4CAF50', marginTop: 20 }]}
+                        style={[styles.saveBtn, { backgroundColor: task?.isCompleted === true ? '#FFB300' : '#4CAF50', marginTop: 20 }]}
                         onPress={async () => {
                             try {
                                 await apiClient.put(`/tasks/${task._id}`, { isCompleted: !task.isCompleted });

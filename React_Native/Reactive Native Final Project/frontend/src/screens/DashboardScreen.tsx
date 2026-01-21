@@ -88,10 +88,10 @@ export default function DashboardScreen({ navigation }: any) {
                 {['all', 'pending', 'completed'].map((f) => (
                     <TouchableOpacity
                         key={f}
-                        style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
+                        style={[styles.filterBtn, filter === f ? styles.filterBtnActive : {}]}
                         onPress={() => setFilter(f)}
                     >
-                        <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
+                        <Text style={[styles.filterText, filter === f ? styles.filterTextActive : {}]}>
                             {f === 'all' ? 'All' : f === 'pending' ? 'Pending' : 'Done'}
                         </Text>
                     </TouchableOpacity>
@@ -99,7 +99,7 @@ export default function DashboardScreen({ navigation }: any) {
             </View>
 
             {loading ? (
-                <ActivityIndicator size="large" color="#2D62ED" style={{ marginTop: 50 }} />
+                <ActivityIndicator color="#2D62ED" style={{ marginTop: 50 }} />
             ) : (
                 <FlatList
                     data={filteredTasks}

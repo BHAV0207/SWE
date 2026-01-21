@@ -71,7 +71,7 @@ export default function NotesScreen() {
                     placeholder="Type a new note..."
                     value={newNote}
                     onChangeText={setNewNote}
-                    multiline
+                    multiline={true}
                 />
                 <TouchableOpacity
                     style={styles.addBtn}
