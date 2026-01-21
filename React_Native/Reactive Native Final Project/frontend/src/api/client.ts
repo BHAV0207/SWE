@@ -22,8 +22,9 @@ client.interceptors.request.use(
     async (config) => {
         const token = await AsyncStorage.getItem('token');
         if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+            config.headers['x-auth-token'] = token;
         }
+        console.log(`API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
         return config;
     },
     (error) => {
@@ -35,10 +36,27 @@ client.interceptors.request.use(
 client.interceptors.response.use(
     (response) => response,
     async (error) => {
-        if (error.response?.status === 401) {
-            // Token expired or invalid - clear storage
-            await AsyncStorage.removeItem('token');
-            await AsyncStorage.removeItem('user');
+        if (error.response) {
+            // Server responded with a status code outside the 2xx range
+            console.error(`API Error Response [${error.response.status}]:`, error.response.data);
+            if (error.response.status === 401) {
+                await AsyncStorage.removeItem('token');
+                await AsyncStorage.removeItem('user');
+            }
+        } else if (error.request) {
+            // The request was made but no response was received
+            console.error('API Network Error (No Response):', {
+                message: error.message,
+                config: {
+                    url: error.config?.url,
+                    method: error.config?.method,
+                    baseURL: error.config?.baseURL,
+                    params: error.config?.params,
+                }
+            });
+        } else {
+            // Something happened in setting up the request
+            console.error('API Request Setup Error:', error.message);
         }
         return Promise.reject(error);
     }
