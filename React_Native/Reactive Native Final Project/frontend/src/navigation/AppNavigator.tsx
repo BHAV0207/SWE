@@ -7,7 +7,7 @@ import { View, Text } from 'react-native';
 // Screens
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
-import DashboardScreen from '../screens/DashboardScreen';
+import DashboardScreen from '../screens/DashboardScreen'
 import TaskDetailScreen from '../screens/TaskDetailScreen';
 import NotesScreen from '../screens/NotesScreen';
 
