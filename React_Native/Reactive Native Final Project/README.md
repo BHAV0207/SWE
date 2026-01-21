@@ -5,8 +5,23 @@ A premium full-stack React Native application designed for high-performance task
 ## 📱 Screenshots
 
 <div align="center">
-  <img src="./screenshots/dashboard.jpg" width="300" alt="Dashboard Screen" />
-  <p><i>Modern Dark Emerald Dashboard</i></p>
+  <table>
+    <tr>
+      <td><img src="./screenshots/dashboard.jpg" width="200" alt="Main View" /></td>
+      <td><img src="./screenshots/img1.jpeg" width="200" alt="App Screen 1" /></td>
+      <td><img src="./screenshots/img2.jpeg" width="200" alt="App Screen 2" /></td>
+    </tr>
+    <tr>
+      <td><img src="./screenshots/img3.jpeg" width="200" alt="App Screen 3" /></td>
+      <td><img src="./screenshots/img4.jpeg" width="200" alt="App Screen 4" /></td>
+      <td><img src="./screenshots/img5.jpeg" width="200" alt="App Screen 5" /></td>
+    </tr>
+     <tr>
+      <td><img src="./screenshots/img6.jpeg" width="200" alt="App Screen 6" /></td>
+      <td><img src="./screenshots/img7.jpeg" width="200" alt="App Screen 7" /></td>
+    </tr>
+  </table>
+  <p><i>App Interface Preview</i></p>
 </div>
 
 ---
