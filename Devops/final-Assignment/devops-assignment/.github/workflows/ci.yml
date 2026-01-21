@@ -1,0 +1,66 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # 4. Run ESLint (Quality Gate)
+      - name: Run lint checks
+        run: npm run lint
+
+      # 5. Run unit tests
+      - name: Run tests
+        run: npm test
+
+      # 6. Build Docker image
+      - name: Build Docker image
+        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/devops-node-api:latest .
+
+      # 7. Container runtime validation
+      - name: Run container health check
+        run: |
+          docker run -d -p 3000:3000 \
+            --name test-container \
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-node-api:latest
+          sleep 5
+          curl -f http://localhost:3000/health
+          docker rm -f test-container
+
+      # 8. Scan image for vulnerabilities
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/devops-node-api:latest
+          severity: CRITICAL,HIGH
+          exit-code: 1
+
+      # 9. Login to DockerHub
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 10. Push trusted image
+      - name: Push Docker image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/devops-node-api:latest
