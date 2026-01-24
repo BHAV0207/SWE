@@ -1,8 +1,3 @@
-Perfect, Bhavya 👏 — you’ve already got the **skeleton** of CI/CD nailed.
-Now let’s turn your notes into a **complete, detailed, interview-ready explanation** — with full clarity on each stage, what tools are used, and what actually happens behind the scenes.
-
----
-
 # 🚀 CI/CD Pipelines — Deep Dive
 
 ---
@@ -323,3 +318,9 @@ Continuous Deployment (CD) is the process of automatically taking the build arti
 ---
 
 Would you like me to make a **flow diagram** for this — showing all CI/CD stages visually (from code push to production)? It’ll make this concept crystal clear.
+
+
+
+//LINUX REFRESHER 
+
+Kernel ->  it is the interface between the hardware and the software , it manages cpu , memeory , HardDisc

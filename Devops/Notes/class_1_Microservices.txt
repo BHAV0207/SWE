@@ -1,11 +1,20 @@
-in microservices the request first goes to the DNS server ,
-from there the request goes to the Load Balacer where there are two types of request that is path based or instance based , ie path based is that the load balancer gets the path to which microservices this reuest has to be send and one servcie can have many instances , so which instance to be called is the instance based load balancing 
-in a microservices architecture there are many services and each service has many instances , so between all the services there should be load balancers so that to which instance the request shoul be send etc 
+in microservices the request first goes to the DNS server ,from there the request goes to the Load Balacer where there are two types of request that is path based or instance based , ie path based is that the load balancer gets the path to which microservices this request has to be send and one servcie can have many instances , so which instance to be called is the instance based load balancing 
+
+
+in a microservices architecture there are many services and each service has many instances , so between all the services there should be load balancers so that to which instance the request should be send etc 
+
 between the srevices there are two types of communication that is sync and async , sync communication is done by api and async is done by  extetnal tools like kafka 
+
 in async communication there is the possibility of eventual consistency , whihc in some cases is unacceptable where we need immediate responses etc....
+
 in the a async communication there are two types that are , pub sub and queue based , in the pub sub the subscriber is notified when there is something publishes by the publisher
 in async communiation we dont need load balancer 
 
 
+there are several microservices and there should be load balancers between all of them as there can be a lot of instances of each microservice thus for which microservice instance to route there are lb between all of them 
 
 
+for the asynchronous communication there is no need for loadbalancers , between services to send the message , coz in the pub sub model the broker takes the role of mappin to the cu=orrect instance 
+
+
+event syncing 

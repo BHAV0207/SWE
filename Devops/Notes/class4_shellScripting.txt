@@ -1,0 +1,11 @@
+ŁINUX ARCHITECTURE 
+
+Hardware at the center , over it we have kernel , over it we have shell , and over it we have user programs 
+
+SHELL SCRIPTIONG
+vi / vim , you should know atlease any one of them for shell scrtipting 
+tehre are two types of mode in this , that is command mode or the insert mode , in command mode you can't see waht you are typing , but in insert mode you can see what you are typing 
+
+to exit and save forst press esc key and then collen wq that is :wq
+
+ 
