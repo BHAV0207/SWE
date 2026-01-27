@@ -1,12 +1,18 @@
 #!/bin/bash
 
-echo "enter file name"
-
+echo "Enter log file name"
 read name
 
-if [ -f $name ]; then 
-	wc -l $name grep "ERROR"
-	wc -l $name grep "WARN"
+if [ -f "$name" ]; then
+    echo "Total lines:"
+    wc -l < "$name"
+
+    echo "ERROR count:"
+    grep "ERROR" "$name" | wc -l
+
+    echo "WARN count:"
+    grep "WARN" "$name" | wc -l
 else
-	echo "log file does not exist"
+    echo "Log file not found"
 fi
+
