@@ -1,15 +1,3 @@
-Great notes 👍
-Your **intuition is correct**, you just need **structure, clearer wording, corrected misconceptions, and expansion**.
-As requested:
-
-* ✅ **I will NOT remove your content**
-* ✅ Your examples & explanations are **kept**
-* ✅ Misconceptions are **fixed without deleting**
-* ✅ Language is cleaned & exam-ready
-* ✅ Added **architecture clarity, HA correction, CAP clarity**
-* ✅ Final output is **pure Markdown** for direct paste
-
----
 
 ```md
 # 🗄️ HDFS – Hadoop Distributed File System (Complete & Enhanced Notes)
