@@ -421,7 +421,7 @@ YARN needs rules to decide:
 Idea:
 
 > Everyone gets a fair chance
-
+`
 * Resources shared equally
 * No job starvation
 * When one job finishes, others get more
