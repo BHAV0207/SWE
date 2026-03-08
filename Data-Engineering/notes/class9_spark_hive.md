@@ -1,38 +1,160 @@
 # Data Engineering – Class 9 Notes
+
 # Hive Storage Model, Table Types, Partitioning, Bucketing, and Execution Engines
-
-## 1. Data Storage in HDFS and Hive Schema
-
-In the Hadoop ecosystem, data is usually stored in **HDFS (Hadoop Distributed File System)** as files. These files may contain structured or semi-structured data formats such as:
-
-- CSV
-- JSON
-- Parquet
-- ORC
-- Text files
-
-Hive allows us to **create a schema on top of these files** so that they can be queried using SQL-like syntax. Hive does not work on unstructured data 
-
-Important idea:
-
-Hive does **not store the data itself**.  
-The data is stored in HDFS files, while Hive only stores **metadata about the schema**.
-
-This concept is called:
-
-**Schema-on-read**
-
-This means:
-- Data is stored first
-- Schema is applied when we query it
-
-This is different from traditional databases where schema must be defined before storing data.
 
 ---
 
-## 2. Difference Between Hive and RDBMS Updates
+# 1. Data Storage in HDFS and Hive Schema
 
-In a traditional relational database system (RDBMS) such as MySQL or PostgreSQL, updating a record is straightforward.
+In the Hadoop ecosystem, data is usually stored in **HDFS (Hadoop Distributed File System)** as files.
+
+These files may contain structured or semi-structured data formats such as:
+
+* CSV
+* JSON
+* Parquet
+* ORC
+* Text files
+* Avro
+
+Example of data stored in HDFS:
+
+```
+/data/sales/sales_2024.csv
+/data/sales/sales_2025.csv
+/data/logs/server_logs.json
+```
+
+Example CSV file:
+
+```
+product_id,price,city
+101,500,Delhi
+102,800,Mumbai
+103,200,Bangalore
+```
+
+These files are just **plain files stored in a distributed file system**.
+
+Hive allows us to **create a schema on top of these files** so that they can be queried using SQL-like syntax.
+
+Important point:
+
+Hive does **not work with unstructured binary data like images or videos directly**.
+Hive expects **structured or semi-structured data**.
+
+---
+
+## Important Idea
+
+Hive does **not store the data itself**.
+
+The data is stored in **HDFS files**, while Hive only stores **metadata about the schema**.
+
+Metadata includes:
+
+* Table name
+* Column names
+* Column data types
+* File location in HDFS
+* Partition information
+* Bucketing information
+
+This metadata is stored in a database called the **Hive Metastore**.
+
+Example metadata stored:
+
+```
+Table: sales
+Columns:
+    product_id INT
+    amount DOUBLE
+Location:
+    /warehouse/sales
+```
+
+---
+
+## This Concept is Called
+
+### Schema-on-read
+
+This means:
+
+* Data is stored first
+* Schema is applied **when we read the data**
+
+Example:
+
+Suppose a file exists in HDFS:
+
+```
+/data/employees.csv
+```
+
+Content:
+
+```
+1,John,50000
+2,Alice,60000
+3,Bob,70000
+```
+
+We can create a Hive table like:
+
+```sql
+CREATE TABLE employees (
+    id INT,
+    name STRING,
+    salary INT
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+LOCATION '/data/employees.csv';
+```
+
+Now Hive **interprets the file using this schema**.
+
+---
+
+## Difference from Traditional Databases
+
+Traditional databases use:
+
+### Schema-on-write
+
+Meaning:
+
+1. Schema must be defined first
+2. Then data is inserted into the database
+
+Example:
+
+```sql
+CREATE TABLE employees (
+    id INT,
+    name VARCHAR(50),
+    salary INT
+);
+```
+
+Then data is inserted.
+
+---
+
+### Quick Comparison
+
+| Feature      | Hive           | Traditional Database |
+| ------------ | -------------- | -------------------- |
+| Schema type  | Schema-on-read | Schema-on-write      |
+| Data storage | Files in HDFS  | Database storage     |
+| Flexibility  | High           | Medium               |
+
+---
+
+# 2. Difference Between Hive and RDBMS Updates
+
+In a traditional relational database system (RDBMS) such as **MySQL** or **PostgreSQL**, updating a record is straightforward.
 
 Example:
 
@@ -40,35 +162,88 @@ Example:
 UPDATE employee
 SET phone_no = '1234567890'
 WHERE emp_id = 1;
-````
+```
 
 Why is this easy in RDBMS?
 
 Because RDBMS systems are designed for **transactional workloads (OLTP)**.
 
-Characteristics of RDBMS:
+OLTP = Online Transaction Processing
+
+Examples:
+
+* Banking systems
+* Order placement
+* Payment systems
+* Inventory updates
+
+---
+
+## Characteristics of RDBMS
 
 * Row-level updates are supported
 * Transactions are supported
 * ACID compliance
 * Optimized for frequent changes
 
+ACID properties:
+
+| Property    | Meaning                                     |
+| ----------- | ------------------------------------------- |
+| Atomicity   | Transaction either completes fully or fails |
+| Consistency | Database remains valid                      |
+| Isolation   | Transactions do not interfere               |
+| Durability  | Changes are permanent                       |
+
 ---
 
-### Why Updating Data in Hive is Difficult
+# Why Updating Data in Hive is Difficult
 
 Hive operates on **files stored in HDFS**, not rows inside a database table.
 
 HDFS has a fundamental constraint:
 
-Files are **immutable**.
+### Files are immutable
 
 This means:
 
-* You cannot modify a specific row inside a file.
-* To change data, the entire file must be rewritten.
+* Once a file is written, it **cannot be modified**
+* You cannot change a single row inside a file
 
-Therefore, to update a record in Hive, we typically use an **overwrite approach**.
+Example:
+
+Suppose we have a file:
+
+```
+employees.csv
+```
+
+```
+1,John,9000
+2,Alice,8000
+3,Bob,7000
+```
+
+If we want to update John's salary:
+
+```
+1,John,10000
+```
+
+We **cannot modify only that row**.
+
+Instead the process is:
+
+1. Read the entire file
+2. Apply the modification
+3. Write a new file
+4. Replace the old file
+
+---
+
+## Hive Update Approach
+
+Hive typically uses **INSERT OVERWRITE**.
 
 Example:
 
@@ -85,37 +260,115 @@ SELECT
 FROM employees;
 ```
 
-What happens here:
+---
 
-1. Hive reads the entire dataset.
-2. Applies the transformation logic.
-3. Writes a completely new file.
-4. Replaces the old file.
+### What Happens Internally
 
-This makes updates **expensive and slow**.
+Step 1
+
+Hive reads the entire dataset.
+
+Step 2
+
+Transformation logic is applied.
+
+Step 3
+
+A **new file is generated**.
+
+Step 4
+
+The old file is replaced.
 
 ---
 
-## 3. When Should Hive Be Used?
+### Why This Is Expensive
+
+If the table size is:
+
+```
+5 TB
+```
+
+Updating **one record** means rewriting **5 TB**.
+
+Therefore updates are **very slow**.
+
+---
+
+# 3. When Should Hive Be Used?
 
 Hive should be used when:
 
-* Data is large (terabytes or petabytes)
-* Data changes infrequently
-* Queries are analytical
-* Historical analysis is needed
+* Data size is **very large (TB or PB scale)**
+* Data changes **infrequently**
+* Queries are **analytical**
+* Historical analysis is required
 * Batch processing is acceptable
-
-Example use cases:
-
-* Sales analytics
-* Website traffic analysis
-* Log analysis
-* Historical product performance
 
 ---
 
-### When Hive Should NOT Be Used
+## Example Use Cases
+
+### 1 Website Traffic Analysis
+
+Logs stored:
+
+```
+timestamp, user_id, page_url
+```
+
+Query:
+
+```sql
+SELECT page_url, COUNT(*)
+FROM logs
+GROUP BY page_url;
+```
+
+---
+
+### 2 Sales Analytics
+
+```
+product_id, amount, city
+```
+
+Query:
+
+```sql
+SELECT city, SUM(amount)
+FROM sales
+GROUP BY city;
+```
+
+---
+
+### 3 Log Analysis
+
+Server logs stored in HDFS.
+
+Query example:
+
+```
+Find number of errors per hour
+```
+
+---
+
+### 4 Historical Product Performance
+
+Example query:
+
+```sql
+SELECT product_id, AVG(sales)
+FROM sales_data
+GROUP BY product_id;
+```
+
+---
+
+# When Hive Should NOT Be Used
 
 Hive is not suitable for:
 
@@ -124,31 +377,57 @@ Hive is not suitable for:
 3. Transactional workloads
 4. Applications requiring millisecond response times
 
-In such cases, RDBMS or NoSQL databases are better.
+---
 
-Example systems better suited for this:
+## Better Systems for These
 
 * MySQL
 * PostgreSQL
 * Cassandra
 * MongoDB
+* DynamoDB
+
+Example:
+
+E-commerce order system.
+
+```
+User places order
+Inventory updates
+Payment updates
+```
+
+Hive is **not suitable here**.
 
 ---
 
-## 4. Real-Time Data Processing Limitation in Hive
+# 4. Real-Time Data Processing Limitation in Hive
 
 Hive is designed for **batch processing**, not real-time updates.
 
-When new data arrives in Hadoop systems, it is usually added as new files.
+Example:
 
-Example directory structure:
+Logs arrive every hour.
 
+New files are created.
 
-/emp/date/xyz
-/emp/date/abc
+Directory structure:
 
+```
+/logs/date=2026-01-01/
+/logs/date=2026-01-02/
+/logs/date=2026-01-03/
+```
 
-Each new file represents a new batch of data.
+Each folder contains multiple files.
+
+Example:
+
+```
+part-0001
+part-0002
+part-0003
+```
 
 Hive reads these files during query execution.
 
@@ -156,29 +435,28 @@ Because there is no direct row-level connection between files, updates and real-
 
 ---
 
-
-## 5. Partitioning and Bucketing
+# 5. Partitioning and Bucketing
 
 To improve performance, Hive organizes data using:
 
 * Partitioning
 * Bucketing
 
+These techniques **reduce the amount of data scanned during queries**.
+
 ---
 
-### Partitioning
+# Partitioning
 
 Partitioning divides data into **separate folders based on column values**.
 
 Example directory structure:
 
-
+```
 /sales/year=2024/
 /sales/year=2025/
 /sales/year=2026/
-
-
-Each folder represents a partition.
+```
 
 Example Hive table:
 
@@ -190,35 +468,67 @@ CREATE TABLE sales (
 PARTITIONED BY (year INT);
 ```
 
-Benefits:
+---
 
-* Faster query execution
-* Only relevant partitions are scanned
-* Reduces data scanning
+### Example Data
 
-Example query:
+| product_id | amount | year |
+| ---------- | ------ | ---- |
+| 101        | 200    | 2024 |
+| 102        | 500    | 2025 |
+| 103        | 900    | 2026 |
+
+Stored as:
+
+```
+/sales/year=2024/file1
+/sales/year=2025/file1
+/sales/year=2026/file1
+```
+
+---
+
+### Query Example
 
 ```sql
 SELECT * FROM sales WHERE year = 2026;
 ```
 
-Hive only scans the folder:
+Hive scans only:
 
-
+```
 /sales/year=2026
 ```
 
-Instead of scanning the entire dataset.
+Instead of scanning all data.
 
 ---
 
-### Bucketing
+### Partitioning Benefit
+
+If total dataset:
+
+```
+10 TB
+```
+
+Partition reduces scan to:
+
+```
+200 GB
+```
+
+Huge performance improvement.
+
+---
+
+# Bucketing
 
 Bucketing divides data **within partitions into fixed number of files**.
 
 Example:
 
-If we create 4 buckets:
+If we create **4 buckets**:
 
 ```
 bucket_0001
@@ -227,7 +537,7 @@ bucket_0003
 bucket_0004
 ```
 
-Hive uses a hash function on a column to distribute records.
+Hive distributes rows using a **hash function**.
 
 Example:
 
@@ -240,25 +550,48 @@ CLUSTERED BY (product_id)
 INTO 4 BUCKETS;
 ```
 
-Benefits:
+---
 
-* Improves join performance
-* Efficient sampling
-* Balanced data distribution
+### Example Distribution
+
+```
+product_id % 4
+```
+
+| product_id | bucket  |
+| ---------- | ------- |
+| 101        | bucket1 |
+| 102        | bucket2 |
+| 103        | bucket3 |
+| 104        | bucket4 |
 
 ---
 
-### Partition vs Bucket
+### Why Bucketing Helps
 
-| Feature           | Partition             | Bucket             |
-| ----------------- | --------------------- | ------------------ |
-| Storage           | Separate folders      | Separate files     |
-| Use case          | Filter queries        | Joins and sampling |
-| Data distribution | Based on column value | Based on hash      |
+Useful for:
+
+* Joins
+* Sampling
+* Even data distribution
+
+Example join optimization.
+
+If two tables are bucketed by `user_id`, joins become faster.
 
 ---
 
-## 6. Hive as a Data Warehouse Layer
+# Partition vs Bucket
+
+| Feature           | Partition        | Bucket             |
+| ----------------- | ---------------- | ------------------ |
+| Storage           | Separate folders | Separate files     |
+| Use case          | Filter queries   | Joins and sampling |
+| Data distribution | Column value     | Hash function      |
+
+---
+
+# 6. Hive as a Data Warehouse Layer
 
 Hive is not technically a database but behaves like a **data warehouse interface**.
 
@@ -267,14 +600,14 @@ A data warehouse is used for:
 * Historical analysis
 * Aggregation queries
 * Business intelligence
+* Reporting
+* Decision support
 
-Hive gives a data warehouse-like experience because:
+Hive provides SQL access to large datasets.
 
-* Files in HDFS appear as tables
-* Analysts can write SQL queries
-* Data can be aggregated and analyzed
+---
 
-Example analytical query:
+### Example Query
 
 ```sql
 SELECT product_id, SUM(views)
@@ -282,11 +615,20 @@ FROM hive.views
 GROUP BY product_id;
 ```
 
-This might produce millions of rows.
+Output example:
+
+```
+product_id | total_views
+101 | 500000
+102 | 700000
+103 | 300000
+```
+
+This may process **billions of rows**.
 
 ---
 
-## 7. Intermediate Analysis Tables
+# 7. Intermediate Analysis Tables
 
 Suppose an analyst runs a query on large datasets and generates results.
 
@@ -298,17 +640,24 @@ Amazon product view analysis:
 product_id | total_views
 ```
 
-This result might contain **10 million rows**.
+Result may contain **10 million rows**.
 
-If the analyst wants to perform further analysis, they may store this output back into HDFS.
+Instead of recomputing this result repeatedly, we may store it.
 
-However, this data may only be useful temporarily.
+Example:
 
-Therefore, it is better to store such temporary analysis results using **internal tables**.
+```sql
+CREATE TABLE product_view_summary AS
+SELECT product_id, SUM(views)
+FROM views
+GROUP BY product_id;
+```
+
+This is called an **intermediate analysis table**.
 
 ---
 
-## 8. Types of Tables in Hive
+# 8. Types of Tables in Hive
 
 Hive supports two types of tables:
 
@@ -317,7 +666,7 @@ Hive supports two types of tables:
 
 ---
 
-## 9. Managed Table (Internal Table)
+# 9. Managed Table (Internal Table)
 
 In a managed table, Hive manages:
 
@@ -333,19 +682,27 @@ CREATE TABLE employees (
 );
 ```
 
-If the table is dropped:
+Hive stores data in:
+
+```
+/user/hive/warehouse/employees/
+```
+
+---
+
+## If Table is Dropped
 
 ```sql
 DROP TABLE employees;
 ```
 
-Hive will delete:
+Hive deletes:
 
-* Table schema
 * Metadata
-* Actual files stored in HDFS
+* Data files
+* Table directory
 
-This means the data is permanently deleted.
+Data is permanently deleted.
 
 ---
 
@@ -354,18 +711,21 @@ This means the data is permanently deleted.
 Use internal tables when:
 
 * Data is temporary
-* Data is generated for analysis fro personal use to maybe check something or personal use etc...
-* Data is not part of production systems
+* Data is generated for analysis
+* Data is for personal experimentation
+* Data can be safely deleted
 
 Example:
 
-Temporary analytical results.
+```
+temporary aggregation tables
+```
 
 ---
 
-## 10. External Tables
+# 10. External Tables
 
-In external tables, Hive only manages the schema.
+In external tables, Hive only manages the **schema**.
 
 The data files remain in HDFS even if the table is dropped.
 
@@ -396,15 +756,15 @@ The HDFS file remains untouched.
 External tables should be used when:
 
 * Data belongs to production systems
-* Multiple tools access the data
+* Multiple tools access the same data
 * Data should not be accidentally deleted
 * Data is shared across teams
 
-Most production Hive tables are external tables.
+Most **production Hive tables are external tables**.
 
 ---
 
-## 11. Default Table Behavior
+# 11. Default Table Behavior
 
 If you create a table without specifying the type:
 
@@ -414,7 +774,7 @@ CREATE TABLE emp_123 (...)
 
 Hive creates a **managed table by default**.
 
-To create an external table you must explicitly specify:
+To create an external table:
 
 ```
 CREATE EXTERNAL TABLE emp_123 (...)
@@ -422,43 +782,47 @@ CREATE EXTERNAL TABLE emp_123 (...)
 
 ---
 
-## 12. Hive Execution Engines
+# 12. Hive Execution Engines
 
-Hive queries are converted into execution plans that run on distributed engines.
+Hive queries are converted into **execution plans** that run on distributed engines.
 
-Originally, Hive used:
+Originally Hive used:
 
-MapReduce
+### MapReduce
 
-Later, faster engines were introduced:
+Later faster engines were introduced:
 
 * Tez
 * Spark
 
 ---
 
-## 13. MapReduce Engine
+# 13. MapReduce Engine
 
-MapReduce processes data on **disk**.
+MapReduce processes data **on disk**.
 
-Every step (map, shuffle, reduce) writes intermediate results to disk.
+Execution stages:
 
-This causes:
+```
+Map → Shuffle → Reduce
+```
 
-* High disk I/O
+Each stage writes intermediate results to disk.
+
+Example workflow:
+
+```
+Input → Map → Disk → Shuffle → Disk → Reduce → Output
+```
+
+Problems:
+
+* Heavy disk I/O
 * Slow performance
-
-MapReduce is good for:
-
-* Large ETL pipelines
-* Heavy batch jobs
-* Fault tolerance
-
-But it is slower than modern engines.
 
 ---
 
-## 14. Tez Engine
+# 14. Tez Engine
 
 Tez improves performance by:
 
@@ -466,7 +830,19 @@ Tez improves performance by:
 * Reducing disk writes
 * Optimizing task execution
 
-Tez runs jobs mostly **in memory**, which makes it much faster than MapReduce.
+DAG = Directed Acyclic Graph
+
+Instead of rigid MapReduce steps, tasks can be optimized.
+
+Example:
+
+```
+Task1 → Task2 → Task3
+```
+
+Runs mostly **in memory**.
+
+Much faster.
 
 Tez is commonly used for:
 
@@ -477,32 +853,30 @@ In modern Hive installations, **Tez is the default engine**.
 
 ---
 
-## 15. Spark Engine
+# 15. Spark Engine
 
-Spark is the fastest execution engine for large-scale data processing.
+Spark is the **fastest execution engine**.
 
-Spark advantages:
+Advantages:
 
 * In-memory processing
 * Advanced DAG scheduling
 * Supports machine learning
-* Supports streaming data
+* Supports streaming
+* Supports graph processing
 
-However, Spark must be configured with Hive separately.
+Spark libraries:
 
-Spark is widely used for:
-
-* Real-time analytics
-* Machine learning pipelines
-* Data science workloads
+* Spark SQL
+* MLlib
+* GraphX
+* Structured Streaming
 
 ---
 
-## 16. Changing Execution Engine in Hive
+# 16. Changing Execution Engine in Hive
 
-To switch execution engines:
-
-```
+```sql
 SET hive.execution.engine = mr;
 SET hive.execution.engine = tez;
 SET hive.execution.engine = spark;
@@ -510,7 +884,7 @@ SET hive.execution.engine = spark;
 
 ---
 
-## 17. Comparison of Execution Engines
+# 17. Comparison of Execution Engines
 
 | Engine    | Speed   | Processing       | Architecture            |
 | --------- | ------- | ---------------- | ----------------------- |
@@ -520,45 +894,53 @@ SET hive.execution.engine = spark;
 
 ---
 
-## 18. Choosing the Right Engine
+# 18. Choosing the Right Engine
 
-MapReduce should be used when:
+### MapReduce
 
-* Running heavy ETL jobs
-* Stability is more important than speed
-* Batch pipelines are large
+Use when:
 
-Tez should be used when:
-
-* Running analytical SQL queries
-* Working with Hive frequently
-* Faster query performance is needed
-
-Spark should be used when:
-
-* Running machine learning pipelines
-* Building real-time dashboards
-* Handling streaming data
-* Data science workflows
+* Heavy ETL pipelines
+* Maximum fault tolerance needed
 
 ---
 
-## 19. Summary
+### Tez
 
-Hive provides a SQL interface for analyzing large datasets stored in HDFS.
+Use when:
+
+* Running Hive queries
+* Interactive analytics
+* Faster SQL execution required
+
+---
+
+### Spark
+
+Use when:
+
+* Machine learning
+* Real-time analytics
+* Data science workloads
+* Streaming pipelines
+
+---
+
+# 19. Summary
+
+Hive provides a **SQL interface** for analyzing large datasets stored in HDFS.
 
 Important concepts:
 
-* Hive uses schema-on-read.
-* Updates require file overwrites.
-* Hive is best suited for batch analytics.
-* Partitioning and bucketing improve performance.
-* Managed tables delete data when dropped.
-* External tables preserve HDFS data.
-* Hive execution engines include MapReduce, Tez, and Spark.
+* Hive uses **schema-on-read**
+* Updates require **file overwrites**
+* Hive is designed for **batch analytics**
+* Partitioning and bucketing improve performance
+* Managed tables delete data when dropped
+* External tables preserve HDFS data
+* Execution engines include **MapReduce, Tez, and Spark**
 
 Hive is primarily used as a **data warehouse interface for big data systems**.
-
 
 ----
 ````
