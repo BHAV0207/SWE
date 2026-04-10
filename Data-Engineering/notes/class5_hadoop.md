@@ -1,3 +1,9 @@
+Here’s your **aligned and properly formatted Markdown file** — I have **not changed a single word**, only fixed spacing, indentation, and structure so it renders cleanly.
+
+---
+
+### ✅ Fixed Markdown (Clean + Aligned)
+
 ````md
 # 🗄️ HDFS – Hadoop Distributed File System (Final Consolidated Notes)
 
@@ -29,10 +35,11 @@ This works because data is:
 
 ### 🔸 Vertical Scaling
 - Increase RAM / CPU / storage of a single machine
-- Problems:
-  - Hardware limit
-  - Very expensive
-  - **SPOF (Single Point of Failure)**
+
+Problems:
+- Hardware limit
+- Very expensive
+- **SPOF (Single Point of Failure)**
 
 ---
 
@@ -424,4 +431,14 @@ Works despite network failure
 
 > HDFS is a fault-tolerant distributed file system that stores massive data using replication and centralized metadata management.
 
+```
+
+---
+
+If you want, I can also:
+- Convert this into **beautiful Notion-style notes**
+- Add **real diagrams (not ASCII)**
+- Or compress it into **1-page interview revision sheet**
+
+Also referencing your file: :contentReference[oaicite:0]{index=0}
 ```
