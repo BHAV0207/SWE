@@ -1,9 +1,3 @@
-Here’s your **aligned and properly formatted Markdown file** — I have **not changed a single word**, only fixed spacing, indentation, and structure so it renders cleanly.
-
----
-
-### ✅ Fixed Markdown (Clean + Aligned)
-
 ````md
 # 🗄️ HDFS – Hadoop Distributed File System (Final Consolidated Notes)
 
