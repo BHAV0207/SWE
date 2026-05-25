@@ -438,37 +438,526 @@ Benefits:
 
 ---
 
-# 21. Redis and Shared Memory
+Your notes are going in a very strong direction.
+Most of the concepts are correct, but there are:
 
-Redis itself:
-- it stays on ram therefore its very fast that is very less latency roughly 100 nano sec
-- all the processses can read data through redis's heap using the shared memory
-- mainly runs as a single main process
-- stores data structures inside heap memory
-- but as we know redis is on ram , there fore DATA PERSISTANCE becomes an issue 
+* a few wording issues
+* some technical inaccuracies
+* some missing low-level explanations
 
+The biggest thing:
+You are now entering:
 
-=> how do we solve that ???
-->we need disc based database 
--> suppose we have a program that reads from the disc and writes to the disc 
+# Operating Systems + DB Internals + Storage Engine territory
 
-=> in ram there are several comperthments that is , several processes and the operating system or kernel 
--> when a process is going on and there is a command like open a file or etc...which the process does not know how to perform it goes to the kernel and asks it do it for him , this type of call is called the sys call or the system call
--> Suppose if the kernel or the operating system themselves don't know about the file that needs to be opened, then they directly contact with the hard disk, that is the storage disk.
-->Okay, so the copying that happens from the disk to the RAM, that usually does not go through CPU. The instructions are not given by the CPU. That happens through DMA, that is drivers, because if all the copying from the hard disk to the RAM will go through CPU, then it will make the CPU very slow and increase a lot of load on CPU. Only generally the RAM to RAM, that is internally if anything is being copied, then that goes through CPU. As you know that if, suppose, for example, if you take the full picture, then process A sees something like open a file or something, it tells CPU that, okay, I have got this open a file, then the CPU tells the kernel or the OS, whatever we say it, to perform the operation. If the kernel OS does not have that file or they don't know about that file, they contact the hard drive and copy that file from the hard drive. And that is happened through with the help of drivers. That is not something that CPU take care of.
--> dma = direct mempry access
+which is excellent for backend/system design interviews.
 
-=> this time we will see how the file is read 
-->  In the case of reading, suppose there is a file that we need to read. What will happen? The same process, the process going on in RAM, will tell the CPU that I need to read the file. The CPU will tell the kernel of the OS. The kernel or the OS, with the help of driver, will contact the hard drive and will copy the data that we want to read from the hard drive to the RAM. But the thing is that its kernel is not responsible for copying the data to the process's memory. It will copy the data then for the process to read that data. I mean, to get that data, there will be another copy made in that from the RAMs, basically the memory where kernel has stored the data to the storage of the process, where the process can read or perform any operation on that data.
-->When reading the data, suppose the process requests for the first three bytes, but as there is a hardware limit that we cannot get random three bytes, so there are concepts of blocks and pages in the hardware where it's standard page size that the industry standard is 4 KB, there form the harddirve the full page is coied to the ram via the driver and the place where its copied is called the page cache 
--> though inside the page cache, the complete page is stored, but if the process requires only the first three bytes, then only the first three bytes are given to the process after it is copied inside the RAM. But getting from the hard drive, you get the complete page, not the desired three bytes or four bytes, whatever you ask for. You get that, but when the data is copied or stored in the page cache inside the RAM, then the kernel or the CPU or whatever gives you the desired result your process asked for.
+Your uploaded notes are here: 
 
-=> Writing data 
-->Now suppose we have to write data, that is basically in other terms is edit the data, then what happens, suppose we want to edit the first three bytes. Suppose the data in the page cache was HELLO, that is five bytes, hello. We wanted to uh update or write the first four bytes, that is BYLEO. So what will happen is, first the process will write it and then the kernel will send that updated data to the page cache inside the RAM. And then the thing is that all after that, with the help of drivers, the hard drive will see that updated data and will update that inside the hard drive. But the fun thing is that this operation is not synchronous. the os schedules the task depending on the load , and meanwhile markd the page cache as dirty 
+Below are the important corrections and clarifications you should add to your notes.
 
+---
 
-=> disk
--> Well, SSD, we know that hard drive has a clockwise mechanism which helps in reading and writing the data. So it generally takes 5 to 10 milliseconds.
-->Yes, basically it has a kind of a section wise division in which there are pages numbered like for section there are 1 to 12 pages, for example, and second section 12 to 24, etc. So basically, if we want to directly get the 20th page, we can directly go to the second block rather than first going through the first block and then the second. No, we skip a lot of iterations. Basically, it's kind of a binary search, but not exactly. Therefore, it's much more faster than HDD.
--> so you have noticed one thing our main optimisation is where we fetch data from the disc as ssd
-->Now, suppose now that we have an intelligent box database, now, we know that page cache is there. Now, suppose the page cache has the ability to store two pages, and first page is user 0 to 100, second page is user 100 to 200. Suppose the user wants the user 40. So page cache has page 1 and page 2. So it will see that, yeah, page 1 has 0 to 100, so it will find 40 and give the result that is the cam operation that will be very fast. Now, suppose the user wants ID 300, that is in page 3, but we only have page 1 and page 2 in the page cache. So what will happen? Eviction will happen. Page 1 will be removed or page 2, depending upon the eviction policy, and from the disk, page 3 will be gathered and will be stored, will be brought via the driver to the page cache, and then the details for the user 3, whatever was asked, will be given. So one of very, very, very important point is, whenever you are designing a database, design your own eviction policy.
+# 1. Redis Shared Memory Part → Slightly Incorrect
+
+You wrote:
+
+```text
+all the processes can read data through redis's heap using the shared memory
+```
+
+This is NOT how Redis normally works.
+
+Correct version:
+
+```md
+Redis clients do NOT directly access Redis heap memory.
+
+Clients communicate with Redis using:
+- TCP sockets
+- Unix sockets
+- Redis protocol
+
+Redis itself stores data inside its own process heap.
+```
+
+Why?
+
+Because:
+
+* Redis is a separate process
+* process isolation prevents direct heap sharing
+
+So normally:
+
+```text
+Client Process ---> Socket ---> Redis Process
+```
+
+NOT:
+
+```text
+Client Process ---> Redis Heap directly
+```
+
+---
+
+# 2. Redis Latency
+
+You wrote:
+
+```text
+roughly 100 nano sec
+```
+
+More accurate:
+
+```md
+RAM access latency is typically:
+- ~50ns to 150ns
+
+Redis operations are usually:
+- microseconds level
+```
+
+Because:
+
+* networking
+* parsing
+* scheduling
+* CPU execution
+
+also take time.
+
+---
+
+# 3. System Calls (Syscalls)
+
+Your understanding is GOOD.
+
+Cleaner version:
+
+```md
+Processes cannot directly interact with hardware.
+
+Whenever a process wants to:
+- open a file
+- read from disk
+- create a socket
+- allocate memory
+
+it asks the kernel using a System Call (syscall).
+```
+
+Examples:
+
+* open()
+* read()
+* write()
+* mmap()
+
+---
+
+# 4. CPU Does NOT Talk Directly to Disk
+
+Your idea is correct but wording should improve.
+
+Correct flow:
+
+```text
+Process
+   ↓
+System Call
+   ↓
+Kernel
+   ↓
+Device Driver
+   ↓
+SSD/HDD
+```
+
+---
+
+# 5. DMA (Direct Memory Access)
+
+Your understanding is GOOD.
+
+Cleaner explanation:
+
+```md
+DMA allows devices like SSDs/NICs to copy data directly into RAM
+without constantly involving the CPU.
+
+Without DMA:
+- CPU would become bottlenecked
+- copying large files would heavily waste CPU cycles
+```
+
+Important:
+CPU still:
+
+* initiates operation
+* configures DMA
+
+But actual bulk copying:
+
+* handled by DMA controller/hardware.
+
+---
+
+# 6. File Read Flow → Very Important
+
+Your understanding is VERY GOOD here.
+
+Proper flow:
+
+# File Read Flow
+
+```text
+Process
+   ↓
+read() syscall
+   ↓
+Kernel
+   ↓
+Check Page Cache
+   ↓
+If page absent:
+    SSD/HDD -> DMA -> RAM Page Cache
+   ↓
+Kernel copies requested bytes to process buffer
+   ↓
+Process receives data
+```
+
+---
+
+# 7. Important Clarification About Page Cache
+
+You understood this WELL.
+
+Key concept:
+
+```md
+Disk IO happens in pages/blocks,
+NOT individual bytes.
+```
+
+Industry standard:
+
+* page size = 4KB (commonly)
+
+Even if process asks:
+
+```text
+give me first 3 bytes
+```
+
+OS usually loads:
+
+```text
+entire 4KB page
+```
+
+into:
+
+# Page Cache
+
+Then only required bytes are returned.
+
+This improves:
+
+* performance
+* locality
+* future reads
+
+---
+
+# 8. Very Important Correction
+
+You wrote:
+
+```text
+kernel is not responsible for copying data to process memory
+```
+
+This is incorrect.
+
+Correct version:
+
+```md
+The kernel IS responsible for managing the copy operation.
+
+Usually:
+1. Disk -> Page Cache
+2. Page Cache -> Process Buffer
+```
+
+This second copy is often performed by kernel-managed memory operations.
+
+---
+
+# 9. Page Cache
+
+Excellent topic.
+
+Definition:
+
+```md
+Page Cache is a RAM region used by the kernel
+to cache disk pages.
+```
+
+Benefits:
+
+* avoids repeated disk reads
+* improves performance drastically
+
+---
+
+# 10. Writing Data Flow
+
+Your understanding is mostly correct.
+
+Cleaner version:
+
+# File Write Flow
+
+```text
+Process
+   ↓
+write() syscall
+   ↓
+Kernel updates Page Cache
+   ↓
+Page marked DIRTY
+   ↓
+Later:
+Kernel flushes dirty pages to SSD/HDD
+```
+
+Important:
+
+# Writes are often asynchronous
+
+Meaning:
+
+* process may continue
+* actual disk write happens later
+
+---
+
+# 11. Dirty Pages
+
+VERY IMPORTANT DB concept.
+
+Definition:
+
+```md
+Dirty Page:
+A page in RAM whose contents differ from disk.
+```
+
+Meaning:
+
+* RAM has latest version
+* disk still has old version
+
+Later:
+
+* OS flushes dirty page to disk.
+
+---
+
+# 12. SSD Explanation Needs Correction
+
+You mixed HDD and SSD.
+
+---
+
+# HDD (Hard Disk Drive)
+
+Uses:
+
+* spinning magnetic disk
+* mechanical arm
+
+Slow because:
+
+* physical movement required
+
+Latency:
+
+* ~5ms to 10ms
+
+---
+
+# SSD (Solid State Drive)
+
+NO spinning parts.
+
+Uses:
+
+* flash memory cells
+
+Much faster because:
+
+* electronic access
+* no mechanical movement
+
+Latency:
+
+* microseconds
+
+---
+
+# 13. Block/Page Structure
+
+You are conceptually right.
+
+Storage devices operate in:
+
+* blocks
+* pages
+
+OS reads:
+
+* chunks/pages
+  not individual bytes directly from disk.
+
+---
+
+# 14. Eviction Policy → VERY IMPORTANT
+
+Excellent understanding.
+
+Suppose Page Cache capacity:
+
+```text
+Page 1 -> users 0-100
+Page 2 -> users 100-200
+```
+
+Request:
+
+```text
+User 40
+```
+
+FAST:
+
+* already cached.
+
+Request:
+
+```text
+User 300
+```
+
+MISS:
+
+* must fetch new page from disk.
+
+If cache full:
+
+# eviction happens
+
+One page removed.
+
+New page inserted.
+
+---
+
+# 15. Eviction Policies
+
+VERY IMPORTANT FOR DATABASES.
+
+Common policies:
+
+## LRU
+
+Least Recently Used
+
+## LFU
+
+Least Frequently Used
+
+## FIFO
+
+First In First Out
+
+## CLOCK
+
+Efficient LRU approximation
+
+---
+
+# 16. Important Realization
+
+You correctly identified:
+
+```text
+Database optimization is mostly:
+minimizing disk access.
+```
+
+THIS IS HUGE.
+
+Because:
+
+# Disk IO is expensive.
+
+Databases optimize:
+
+* caching
+* page locality
+* indexing
+* prefetching
+* buffer pools
+
+to avoid disk reads.
+
+---
+
+# 17. One Very Important Missing Concept
+
+You are basically describing:
+
+# Buffer Pool / Buffer Cache
+
+This is core to DB storage engines.
+
+Examples:
+
+* InnoDB Buffer Pool
+* PostgreSQL Shared Buffers
+
+These are:
+
+* intelligent RAM caches for database pages.
+
+---
+
+# 18. Most Important Big Picture
+
+Your notes are slowly building toward:
+
+# How Databases Actually Work Internally
+
+Core ideas:
+
+* RAM vs Disk
+* Page Cache
+* mmap
+* Virtual Memory
+* Syscalls
+* DMA
+* Buffer Pools
+* Eviction Policies
+* Storage Engines
+
+This is literally:
+
+* DBMS internals
+* OS internals
+* Systems engineering foundations.
