@@ -1,6 +1,3 @@
-Here's the cleaned-up markdown with bugs fixed (broken code blocks, inconsistent headings, stray `---` separators inside sections, and the image alt text) — content unchanged:
-
-```markdown
 # Data Engineering – Class 10 Notes
 
 # Apache Spark Backend Architecture
