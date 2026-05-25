@@ -1,842 +1,690 @@
 # DBMS Architecture + Storage Engine Notes
 
-# Redis, Processes, Memory Mapping, Heap, Stack & Shared Memory
+# Introduction
+
+In this lecture we study:
+
+- DBMS Architecture
+- Redis Internals
+- Memory Architecture
+- Shared Memory (mmap)
+- Disk Storage
+- Page Cache
+- File Read/Write Flow
+- DMA
+- SSD vs HDD
+- Eviction Policies
 
 ---
 
-# 1. What is Redis?
+# REDIS
 
 Redis is an **in-memory database**.
 
 This means:
-- Data primarily lives inside RAM.
-- Since RAM is very fast, Redis operations are extremely fast.
+
+- Data primarily exists inside RAM
+- Very low latency
+- Extremely fast reads/writes
 
 Redis is commonly used for:
+
 - Caching
 - Session storage
 - Pub/Sub systems
-- Queues
-- Real-time analytics
+- Real-time systems
 - Rate limiting
+- Leaderboards
 
 ---
 
-# 2. Redis as a Key-Value Store
+# Redis as a Key-Value Store
 
 Redis is a:
 
-# Key-Value (KV) Database
+## Key-Value (KV) Database
 
-Example:
+Internally it stores:
 
-```json
-{
-  "name": "Bhavya",
-  "age": 22
-}
+```text
+key -> value
 ```
 
-Internally Redis uses optimized data structures like:
-- HashMaps
-- Linked Lists
-- Skip Lists
-- Sets
-- Streams
-- Tries
+Similar conceptually to:
 
-For basic key-value storage:
-- Redis heavily relies on HashMaps internally.
-
----
-
-# 3. What is a Process?
-
-Whenever a program runs:
-- the Operating System creates a process.
-
-Examples:
-- Chrome
-- VS Code
-- Redis
-- Spotify
-
-Each process gets:
-- CPU resources
-- its own memory space
-- virtual memory mapping
+```js
+HashMap / Dictionary / Map
+```
 
 Example:
 
 ```text
-Redis Process
-Chrome Process
-VS Code Process
-```
-
-All are isolated from each other.
-
----
-
-# 4. Memory Layout of a Process
-
-Every process generally contains:
-
-```text
--------------------------
-| Stack                |
--------------------------
-|                       |
-| Free Space            |
-|                       |
--------------------------
-| Heap                  |
--------------------------
-| Data Segment          |
--------------------------
-| Code/Text Segment     |
--------------------------
+"user:1" -> "Bhavya"
 ```
 
 ---
 
-# 5. Stack Memory
+# Why Redis is Fast
 
-The stack is:
-- very fast
-- temporary
-- automatically managed
+Redis stores data inside RAM.
 
-Used for:
-- function calls
-- local variables
-- execution frames
+RAM access is significantly faster than disk access.
 
-Example:
+Approximate latencies:
 
-```js
-function add() {
-   let x = 10;
-}
-```
+| Storage Type | Approximate Latency |
+|---|---|
+| CPU Cache | Nanoseconds |
+| RAM | ~100 nanoseconds |
+| SSD | Microseconds |
+| HDD | Milliseconds |
 
-`x` is usually stored in stack memory.
-
-Characteristics:
-- Fast allocation/deallocation
-- Small in size
-- LIFO (Last In First Out)
+This is why Redis is extremely fast.
 
 ---
 
-# 6. Heap Memory
+# Process Memory Basics
 
-Heap memory is:
-- dynamic
-- larger than stack
-- slightly slower
+Every running program/process gets memory.
 
-Used for:
-- objects
-- arrays
-- HashMaps
-- dynamic data structures
+A process generally has:
 
-Example:
-
-```js
-let user = {
-   name: "Bhavya"
-}
-```
-
-The object is stored in heap memory.
+- Stack Memory
+- Heap Memory
 
 ---
 
-# 7. Important Correction About Heap
+# Stack vs Heap
 
-Incorrect statement:
+| Stack | Heap |
+|---|---|
+| Fast | Slower than stack |
+| Temporary | Dynamic memory |
+| Function calls | Objects/data structures |
+| Automatically managed | Manually/GC managed |
+| Small size | Larger size |
+
+---
+
+# Important Correction
+
+Incorrect:
 
 ```text
 Heap is persistent
 ```
 
-Correct understanding:
+Correct:
 
-```text
-Heap survives only while process is alive.
-```
+Heap memory is also inside RAM and is NOT persistent.
 
-When process exits:
-- heap memory is destroyed.
+Both stack and heap are volatile memory.
 
-True persistence means:
-- data survives after process shutdown.
+Persistence means:
 
-Persistent storage examples:
-- SSD
-- HDD
-- database files
+→ Data survives system restart/power off.
 
-Redis can also persist data using:
-- RDB snapshots
-- AOF logs
+Heap does NOT survive restart.
+
+Disk storage provides persistence.
 
 ---
 
-# 8. Physical Memory vs Virtual Memory
+# Process Isolation
+
+Suppose:
+
+- Process A has a HashMap in its heap
+- Process B wants to access it
+
+Normally this is NOT possible.
+
+Reason:
+
+Every process has isolated memory space.
+
+---
+
+# Virtual Memory vs Physical Memory
 
 # Physical Memory
+
 Actual RAM hardware.
-
-Example:
-
-```text
-16 GB RAM installed in system
-```
 
 ---
 
 # Virtual Memory
 
-An abstraction created by the OS.
+Each process gets its own virtual address space.
 
-Every process thinks:
-> "I own my own memory."
+Example:
 
-Even though all processes share the same RAM physically.
-
----
-
-# 9. Virtual Address Space
-
-Every process has:
-- its own virtual address space
-- its own page tables
-
-The OS maps:
+Both processes may use address:
 
 ```text
-Virtual Address -> Physical RAM Address
+0x0004
 ```
 
-using:
-- page tables
+But:
+
+- Process A's address maps to one RAM location
+- Process B's address maps to another RAM location
+
+This mapping is managed using:
+
+- Page tables
 - MMU (Memory Management Unit)
 
 ---
 
-# 10. Example of Virtual Memory Mapping
-
-Suppose:
-
-## Process A
-
-```text
-Virtual Address 0x1000 -> Physical Address 5000
-```
-
-## Process B
-
-```text
-Virtual Address 0x1000 -> Physical Address 9000
-```
-
-Notice:
-- same virtual address
-- different physical memory
-
-This creates:
-# Process Isolation
-
----
-
-# 11. Why Processes Cannot Access Each Other's Heap
-
-Suppose:
-
-```text
-Process A -> has HashMap in heap
-Process B -> wants to access it
-```
-
-Normally:
-# NOT POSSIBLE ❌
+# Why Processes Cannot Access Each Other's Heap
 
 Because:
-- every process has isolated virtual memory
-- page tables are different
 
-Even if virtual addresses look same:
-- physical mappings are different.
+- Memory isolation provides security
+- Prevents accidental corruption
+- Ensures process stability
 
----
-
-# 12. Why Process Isolation is Important
-
-Without isolation:
-- apps could corrupt each other
-- security would break
-- crashes would spread
-
-Isolation gives:
-- security
-- stability
-- fault tolerance
+Each process has separate virtual memory mapping.
 
 ---
 
-# 13. The Problem
+# Shared Memory / mmap
 
-Sometimes processes NEED to communicate.
+To share data between processes:
 
-Examples:
-- databases
-- browsers
-- Redis clients
-- IPC systems
+We use:
 
-Question:
-> How can processes share data safely?
+- Shared Memory
+- mmap (Memory Mapped Files)
 
 ---
 
-# 14. Shared Memory
+# How Shared Memory Works
 
-Solution:
-# Shared Memory
+In shared memory:
 
-The OS allows creation of:
-- shared memory regions
-
-Here:
-- multiple processes map the SAME physical memory pages.
-
----
-
-# 15. mmap (Memory Mapping)
-
-`mmap()` is a system call.
-
-It is used to:
-- map files into memory
-- create shared memory regions
-- map anonymous memory
-
----
-
-# 16. Shared mmap Region Example
-
-Normally:
-
-```text
-Process A Heap != Process B Heap
-```
-
-But with shared memory:
-
-```text
-Process A Virtual Address 0x2000 ----\
-                                       -> SAME Physical RAM
-Process B Virtual Address 0x9000 ----/
-```
-
-Both virtual addresses point to:
-# same physical memory
-
-Now:
-- both processes can read/write same memory.
-
----
-
-# 17. Important Clarification About mmap
-
-Incorrect:
-
-```text
-mmap = shared memory
-```
-
-Correct:
-
-```text
-mmap is a mechanism/system call
-used to create memory mappings.
-```
-
-Shared memory is:
-- the result/concept.
-
-mmap is:
-- one way to implement it.
-
----
-
-# 18. Memory Map
-
-A memory map is:
-> the layout of memory regions for a process.
+Multiple processes map their virtual memory addresses to the SAME physical RAM location.
 
 Example:
 
 ```text
-----------------------
-| Stack              |
-----------------------
-| Shared mmap region |
-----------------------
-| Heap               |
-----------------------
-| Data Segment       |
-----------------------
-| Code Segment       |
-----------------------
+Process A Virtual Address
+            ↓
+        Shared RAM Region
+            ↑
+Process B Virtual Address
 ```
 
-Every region has:
-- start address
-- end address
-- permissions
-
-Example permissions:
-- Read
-- Write
-- Execute
+Now both processes can access same memory.
 
 ---
 
-# 19. Memory Map Regions
+# mmap (Memory Mapping)
 
-Memory regions are specific blocks of memory.
+`mmap()` is a system call.
 
-Examples:
-- Stack region
-- Heap region
+It maps:
+
+- File
 - Shared memory region
-- Code region
 
-Each region serves different purposes.
-
----
-
-# 20. Real-World Uses of mmap
-
-mmap is heavily used in:
-- Redis
-- PostgreSQL
-- MongoDB
-- Kafka
-- Browsers
-- Operating Systems
+directly into process virtual memory.
 
 Benefits:
-- fast file access
-- zero-copy optimizations
-- shared memory communication
-- efficient caching
+
+- Fast IPC (Inter Process Communication)
+- Avoids unnecessary copying
+- Efficient file access
 
 ---
 
-Your notes are going in a very strong direction.
-Most of the concepts are correct, but there are:
+# Redis and Shared Memory
 
-* a few wording issues
-* some technical inaccuracies
-* some missing low-level explanations
+Important Correction:
 
-The biggest thing:
-You are now entering:
-
-# Operating Systems + DB Internals + Storage Engine territory
-
-which is excellent for backend/system design interviews.
-
-Your uploaded notes are here: 
-
-Below are the important corrections and clarifications you should add to your notes.
-
----
-
-# 1. Redis Shared Memory Part → Slightly Incorrect
-
-You wrote:
+Incorrect:
 
 ```text
-all the processes can read data through redis's heap using the shared memory
+All processes read Redis heap using shared memory
 ```
 
-This is NOT how Redis normally works.
+Correct:
 
-Correct version:
+Redis runs as a separate server process.
 
-```md
-Redis clients do NOT directly access Redis heap memory.
+Other applications communicate with Redis via:
 
-Clients communicate with Redis using:
 - TCP sockets
 - Unix sockets
-- Redis protocol
 
-Redis itself stores data inside its own process heap.
-```
+NOT by directly accessing Redis heap memory.
 
-Why?
+---
 
-Because:
+# Redis Architecture
 
-* Redis is a separate process
-* process isolation prevents direct heap sharing
+Redis generally:
 
-So normally:
+- Runs as a single main process
+- Uses event-driven architecture
+- Uses single-threaded command execution (core logic)
+
+Modern Redis versions also use helper threads for:
+
+- Networking
+- Background tasks
+- Persistence
+
+---
+
+# Redis Persistence Problem
+
+Redis stores data in RAM.
+
+RAM is volatile.
+
+If power goes off:
+
+→ Data is lost.
+
+Therefore persistence becomes important.
+
+---
+
+# Redis Persistence Mechanisms
+
+Redis uses:
+
+## 1. RDB (Snapshotting)
+
+Creates periodic snapshots of memory onto disk.
+
+Example:
 
 ```text
-Client Process ---> Socket ---> Redis Process
-```
-
-NOT:
-
-```text
-Client Process ---> Redis Heap directly
+dump.rdb
 ```
 
 ---
 
-# 2. Redis Latency
+## 2. AOF (Append Only File)
 
-You wrote:
+Logs every write operation.
+
+Example:
 
 ```text
-roughly 100 nano sec
+SET user:1 Bhavya
 ```
 
-More accurate:
-
-```md
-RAM access latency is typically:
-- ~50ns to 150ns
-
-Redis operations are usually:
-- microseconds level
-```
-
-Because:
-
-* networking
-* parsing
-* scheduling
-* CPU execution
-
-also take time.
+This allows recovery after restart.
 
 ---
 
-# 3. System Calls (Syscalls)
+# Disk-Based Databases
 
-Your understanding is GOOD.
+Unlike Redis:
 
-Cleaner version:
-
-```md
-Processes cannot directly interact with hardware.
-
-Whenever a process wants to:
-- open a file
-- read from disk
-- create a socket
-- allocate memory
-
-it asks the kernel using a System Call (syscall).
-```
+Traditional databases store data primarily on disk.
 
 Examples:
 
-* open()
-* read()
-* write()
-* mmap()
+- PostgreSQL
+- MySQL
+- MongoDB (partially memory optimized)
+
+Disk storage provides persistence.
 
 ---
 
-# 4. CPU Does NOT Talk Directly to Disk
+# System Calls (Syscalls)
 
-Your idea is correct but wording should improve.
+Processes cannot directly interact with hardware.
 
-Correct flow:
+When a process needs operations like:
 
-```text
-Process
-   ↓
-System Call
-   ↓
-Kernel
-   ↓
-Device Driver
-   ↓
-SSD/HDD
+- Open file
+- Read file
+- Write file
+- Network access
+
+it requests the Kernel using:
+
+## System Calls
+
+Example syscall:
+
+```c
+open()
+read()
+write()
+mmap()
 ```
 
 ---
 
-# 5. DMA (Direct Memory Access)
+# Kernel and Operating System
 
-Your understanding is GOOD.
+Kernel responsibilities:
 
-Cleaner explanation:
+- Memory management
+- File system management
+- Process scheduling
+- Hardware interaction
+- Device management
 
-```md
-DMA allows devices like SSDs/NICs to copy data directly into RAM
-without constantly involving the CPU.
+---
+
+# File Open Flow
+
+## Step-by-Step
+
+1. Process requests file access
+2. CPU switches to kernel mode
+3. Kernel checks filesystem
+4. Kernel communicates with storage device
+5. File data loaded into RAM
+
+---
+
+# DMA (Direct Memory Access)
+
+Important concept.
+
+When copying data from:
+
+```text
+Disk → RAM
+```
+
+CPU is NOT heavily involved in moving every byte.
+
+Instead:
+
+DMA controller/device drivers handle transfer.
+
+---
+
+# Why DMA is Important
 
 Without DMA:
-- CPU would become bottlenecked
-- copying large files would heavily waste CPU cycles
-```
 
-Important:
-CPU still:
+CPU would become bottleneck.
 
-* initiates operation
-* configures DMA
+DMA improves:
 
-But actual bulk copying:
-
-* handled by DMA controller/hardware.
+- Performance
+- Parallelism
+- CPU efficiency
 
 ---
 
-# 6. File Read Flow → Very Important
+# Reading a File
 
-Your understanding is VERY GOOD here.
+# Read Flow
 
-Proper flow:
+## Step 1
 
-# File Read Flow
+Process requests:
 
-```text
-Process
-   ↓
-read() syscall
-   ↓
-Kernel
-   ↓
-Check Page Cache
-   ↓
-If page absent:
-    SSD/HDD -> DMA -> RAM Page Cache
-   ↓
-Kernel copies requested bytes to process buffer
-   ↓
-Process receives data
+```c
+read(fd, buffer, size)
 ```
 
 ---
 
-# 7. Important Clarification About Page Cache
+## Step 2
 
-You understood this WELL.
+Kernel checks if data already exists in RAM page cache.
 
-Key concept:
+If YES:
 
-```md
-Disk IO happens in pages/blocks,
-NOT individual bytes.
-```
+→ Return quickly.
 
-Industry standard:
+If NO:
 
-* page size = 4KB (commonly)
+→ Fetch from disk.
 
-Even if process asks:
+---
 
-```text
-give me first 3 bytes
-```
+## Step 3
 
-OS usually loads:
+Disk transfers page into RAM using DMA.
 
-```text
-entire 4KB page
-```
+---
 
-into:
+## Step 4
+
+Kernel copies requested bytes into process buffer.
+
+---
 
 # Page Cache
 
-Then only required bytes are returned.
+Disk data loaded into RAM is stored in:
 
-This improves:
+## Page Cache
 
-* performance
-* locality
-* future reads
+Managed by kernel.
+
+Purpose:
+
+- Faster future reads
+- Avoid repeated disk access
 
 ---
 
-# 8. Very Important Correction
+# Pages and Blocks
 
-You wrote:
+Storage devices work in fixed-size units.
+
+Common page size:
 
 ```text
-kernel is not responsible for copying data to process memory
-```
-
-This is incorrect.
-
-Correct version:
-
-```md
-The kernel IS responsible for managing the copy operation.
-
-Usually:
-1. Disk -> Page Cache
-2. Page Cache -> Process Buffer
-```
-
-This second copy is often performed by kernel-managed memory operations.
-
----
-
-# 9. Page Cache
-
-Excellent topic.
-
-Definition:
-
-```md
-Page Cache is a RAM region used by the kernel
-to cache disk pages.
-```
-
-Benefits:
-
-* avoids repeated disk reads
-* improves performance drastically
-
----
-
-# 10. Writing Data Flow
-
-Your understanding is mostly correct.
-
-Cleaner version:
-
-# File Write Flow
-
-```text
-Process
-   ↓
-write() syscall
-   ↓
-Kernel updates Page Cache
-   ↓
-Page marked DIRTY
-   ↓
-Later:
-Kernel flushes dirty pages to SSD/HDD
+4 KB
 ```
 
 Important:
 
-# Writes are often asynchronous
+Even if process requests:
 
-Meaning:
-
-* process may continue
-* actual disk write happens later
-
----
-
-# 11. Dirty Pages
-
-VERY IMPORTANT DB concept.
-
-Definition:
-
-```md
-Dirty Page:
-A page in RAM whose contents differ from disk.
+```text
+3 bytes
 ```
 
+Entire page may be loaded from disk.
+
+---
+
+# Example
+
+Suppose file contains:
+
+```text
+HELLO
+```
+
+Process requests:
+
+```text
+HEL
+```
+
+Disk still loads entire page into RAM page cache.
+
+Kernel then returns only requested bytes.
+
+---
+
+# Writing Data
+
+# Write Flow
+
+Suppose:
+
+```text
+HELLO
+```
+
+becomes:
+
+```text
+BYLLO
+```
+
+---
+
+## Step 1
+
+Process modifies data.
+
+---
+
+## Step 2
+
+Kernel updates page cache in RAM.
+
+---
+
+## Step 3
+
+Page marked as:
+
+## Dirty Page
+
 Meaning:
 
-* RAM has latest version
-* disk still has old version
-
-Later:
-
-* OS flushes dirty page to disk.
+RAM version differs from disk version.
 
 ---
 
-# 12. SSD Explanation Needs Correction
+## Step 4
 
-You mixed HDD and SSD.
+Kernel later flushes dirty page to disk asynchronously.
+
+Important:
+
+Disk writes are often NOT immediate.
+
+OS schedules them based on:
+
+- Load
+- Performance optimization
+- IO scheduling
 
 ---
+
+# Synchronous vs Asynchronous Writes
+
+## Synchronous
+
+Write completes only after disk update.
+
+Safer but slower.
+
+---
+
+## Asynchronous
+
+Write acknowledged before actual disk write completes.
+
+Faster but slight risk if crash happens before flush.
+
+---
+
+# HDD vs SSD
 
 # HDD (Hard Disk Drive)
 
 Uses:
 
-* spinning magnetic disk
-* mechanical arm
-
-Slow because:
-
-* physical movement required
+- Spinning magnetic disks
+- Mechanical read/write heads
 
 Latency:
 
-* ~5ms to 10ms
+~5–10 milliseconds
+
+Problems:
+
+- Mechanical delay
+- Slower random access
 
 ---
 
 # SSD (Solid State Drive)
 
-NO spinning parts.
+Uses flash memory.
 
-Uses:
+No moving parts.
 
-* flash memory cells
+Benefits:
 
-Much faster because:
-
-* electronic access
-* no mechanical movement
-
-Latency:
-
-* microseconds
+- Faster random access
+- Lower latency
+- Better durability
 
 ---
 
-# 13. Block/Page Structure
+# Important Correction
 
-You are conceptually right.
-
-Storage devices operate in:
-
-* blocks
-* pages
-
-OS reads:
-
-* chunks/pages
-  not individual bytes directly from disk.
-
----
-
-# 14. Eviction Policy → VERY IMPORTANT
-
-Excellent understanding.
-
-Suppose Page Cache capacity:
+Incorrect:
 
 ```text
-Page 1 -> users 0-100
-Page 2 -> users 100-200
+SSD uses clockwise mechanism
 ```
+
+Correct:
+
+HDD uses rotating disks.
+
+SSD uses flash memory cells.
+
+No spinning components.
+
+---
+
+# Blocks, Pages and Random Access
+
+SSD organizes data internally into:
+
+- Pages
+- Blocks
+
+It can access locations much faster than HDD.
+
+Not exactly binary search internally, but much more efficient random access.
+
+---
+
+# Database Optimization Insight
+
+Very important optimization principle:
+
+```text
+Disk access is expensive
+```
+
+Good databases optimize:
+
+- Reducing disk reads
+- Efficient caching
+- Efficient page replacement
+- Sequential IO
+
+---
+
+# Page Cache Example
+
+Suppose page cache can store:
+
+- Page 1 → Users 0–100
+- Page 2 → Users 101–200
+
+---
+
+## Case 1
 
 Request:
 
@@ -844,9 +692,15 @@ Request:
 User 40
 ```
 
-FAST:
+Already in Page 1.
 
-* already cached.
+Result:
+
+→ Fast memory access.
+
+---
+
+## Case 2
 
 Request:
 
@@ -854,110 +708,99 @@ Request:
 User 300
 ```
 
-MISS:
+Not in cache.
 
-* must fetch new page from disk.
+Then:
 
-If cache full:
-
-# eviction happens
-
-One page removed.
-
-New page inserted.
+1. Existing page evicted
+2. Page containing User 300 loaded from disk
+3. Stored in page cache
+4. Data returned
 
 ---
 
-# 15. Eviction Policies
+# Eviction Policies
 
-VERY IMPORTANT FOR DATABASES.
+When cache becomes full:
 
-Common policies:
+Some page must be removed.
 
-## LRU
+This is called:
 
-Least Recently Used
-
-## LFU
-
-Least Frequently Used
-
-## FIFO
-
-First In First Out
-
-## CLOCK
-
-Efficient LRU approximation
+## Eviction
 
 ---
 
-# 16. Important Realization
+# Common Eviction Policies
 
-You correctly identified:
+# LRU (Least Recently Used)
 
-```text
-Database optimization is mostly:
-minimizing disk access.
-```
+Remove least recently accessed item.
 
-THIS IS HUGE.
-
-Because:
-
-# Disk IO is expensive.
-
-Databases optimize:
-
-* caching
-* page locality
-* indexing
-* prefetching
-* buffer pools
-
-to avoid disk reads.
+Most common.
 
 ---
 
-# 17. One Very Important Missing Concept
+# LFU (Least Frequently Used)
 
-You are basically describing:
+Remove least frequently accessed item.
 
-# Buffer Pool / Buffer Cache
+---
 
-This is core to DB storage engines.
+# FIFO
+
+First inserted removed first.
+
+---
+
+# Why Eviction Policies Matter
+
+Bad eviction policy:
+
+- More disk reads
+- Lower performance
+
+Good eviction policy:
+
+- Better cache hit ratio
+- Faster database
+
+Very important in DBMS design.
+
+---
+
+# Storage Engine
+
+A storage engine is the component responsible for:
+
+- Reading data
+- Writing data
+- Indexing
+- Caching
+- Disk management
+- Concurrency handling
 
 Examples:
 
-* InnoDB Buffer Pool
-* PostgreSQL Shared Buffers
-
-These are:
-
-* intelligent RAM caches for database pages.
+| Database | Storage Engine |
+|---|---|
+| MySQL | InnoDB |
+| MongoDB | WiredTiger |
+| Redis | In-memory structures |
+| PostgreSQL | Custom engine |
 
 ---
 
-# 18. Most Important Big Picture
+# Final Important Concepts
 
-Your notes are slowly building toward:
-
-# How Databases Actually Work Internally
-
-Core ideas:
-
-* RAM vs Disk
-* Page Cache
-* mmap
-* Virtual Memory
-* Syscalls
-* DMA
-* Buffer Pools
-* Eviction Policies
-* Storage Engines
-
-This is literally:
-
-* DBMS internals
-* OS internals
-* Systems engineering foundations.
+| Concept | Meaning |
+|---|---|
+| Redis | In-memory KV database |
+| Heap | Dynamic RAM memory |
+| Shared Memory | Shared RAM region between processes |
+| mmap | Maps memory/file into process space |
+| DMA | Direct disk-to-RAM transfer |
+| Page Cache | Kernel RAM cache for disk pages |
+| Dirty Page | RAM page modified but not flushed |
+| Eviction | Removing pages from cache |
+| Storage Engine | DB component managing storage |
