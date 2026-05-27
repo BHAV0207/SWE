@@ -1,806 +1,1010 @@
-# DBMS Architecture + Storage Engine Notes
+# DBMS Architecture + Storage Engine Notes (Redis, Memory, OS, Disk, Page Cache)
 
-# Introduction
+# 1. Introduction to Redis
 
-In this lecture we study:
-
-- DBMS Architecture
-- Redis Internals
-- Memory Architecture
-- Shared Memory (mmap)
-- Disk Storage
-- Page Cache
-- File Read/Write Flow
-- DMA
-- SSD vs HDD
-- Eviction Policies
-
----
-
-# REDIS
+## What is Redis?
 
 Redis is an **in-memory database**.
 
-This means:
+That means:
 
-- Data primarily exists inside RAM
-- Very low latency
-- Extremely fast reads/writes
+* The primary data of Redis lives inside **RAM**
+* Because RAM is extremely fast, Redis operations are very fast
+* Redis is mainly used for:
 
-Redis is commonly used for:
+  * caching
+  * session storage
+  * pub/sub systems
+  * rate limiting
+  * fast lookups
+  * leaderboards
+  * queues
 
-- Caching
-- Session storage
-- Pub/Sub systems
-- Real-time systems
-- Rate limiting
-- Leaderboards
+Redis is generally called a:
+
+* **Key-Value (KV) store**
+* **In-memory datastore**
+* **Data structure server**
 
 ---
 
-# Redis as a Key-Value Store
+# 2. Redis Internally Uses Data Structures
 
-Redis is a:
+You wrote:
 
-## Key-Value (KV) Database
+> Redis is a KV storage that is hashmap
 
-Internally it stores:
+This is mostly correct.
 
-```text
-key -> value
-```
+Internally Redis stores data in memory using structures like:
 
-Similar conceptually to:
-
-```js
-HashMap / Dictionary / Map
-```
+* HashMaps
+* Linked Lists
+* Skip Lists
+* Sets
+* Sorted Sets
+* Tries
+* Streams
 
 Example:
 
-```text
-"user:1" -> "Bhavya"
+```txt
+SET user:1 "Bhavya"
 ```
 
----
+Internally:
 
-# Why Redis is Fast
-
-Redis stores data inside RAM.
-
-RAM access is significantly faster than disk access.
-
-Approximate latencies:
-
-| Storage Type | Approximate Latency |
-|---|---|
-| CPU Cache | Nanoseconds |
-| RAM | ~100 nanoseconds |
-| SSD | Microseconds |
-| HDD | Milliseconds |
-
-This is why Redis is extremely fast.
-
----
-
-# Process Memory Basics
-
-Every running program/process gets memory.
-
-A process generally has:
-
-- Stack Memory
-- Heap Memory
-
----
-
-# Stack vs Heap
-
-| Stack | Heap |
-|---|---|
-| Fast | Slower than stack |
-| Temporary | Dynamic memory |
-| Function calls | Objects/data structures |
-| Automatically managed | Manually/GC managed |
-| Small size | Larger size |
-
----
-
-# Important Correction
-
-Incorrect:
-
-```text
-Heap is persistent
+```txt
+Key   -> user:1
+Value -> "Bhavya"
 ```
 
-Correct:
+Stored inside memory structures.
 
-Heap memory is also inside RAM and is NOT persistent.
+---
 
-Both stack and heap are volatile memory.
+# 3. Process Memory — Stack vs Heap
+
+You wrote:
+
+> stack is fast and temporary and heap is slow and persistent
+
+This needs correction.
+
+## Correct Understanding
+
+| Memory Area | Purpose                         | Speed           | Lifetime              |
+| ----------- | ------------------------------- | --------------- | --------------------- |
+| Stack       | Function calls, local variables | Very fast       | Automatically cleaned |
+| Heap        | Dynamically allocated memory    | Slightly slower | Exists until freed    |
+
+The heap is **NOT persistent**.
 
 Persistence means:
 
-→ Data survives system restart/power off.
+* data survives process restart/system reboot
 
-Heap does NOT survive restart.
+Heap memory disappears when:
 
-Disk storage provides persistence.
+* process dies
+* machine shuts down
 
----
-
-# Process Isolation
-
-Suppose:
-
-- Process A has a HashMap in its heap
-- Process B wants to access it
-
-Normally this is NOT possible.
-
-Reason:
-
-Every process has isolated memory space.
+Redis heap data also disappears unless Redis persistence mechanisms are used.
 
 ---
 
-# Virtual Memory vs Physical Memory
+# 4. Understanding Processes in RAM
 
-# Physical Memory
+Suppose there are two processes:
 
-Actual RAM hardware.
+```txt
+Process A
+Process B
+```
+
+Process A has:
+
+```txt
+HashMap in Heap
+```
+
+You asked:
+
+> Can Process B directly access Process A's heap?
+
+Answer:
+
+❌ NO.
+
+Processes are isolated from each other.
 
 ---
 
-# Virtual Memory
+# 5. Why Processes Cannot Access Each Other’s Memory
 
-Each process gets its own virtual address space.
+This is because of:
+
+* Virtual Memory
+* Memory Protection
+
+---
+
+# 6. Virtual Memory vs Physical Memory
+
+This part of your understanding is very good.
+
+## Physical Memory
+
+This is the actual RAM hardware.
 
 Example:
 
-Both processes may use address:
-
-```text
-0x0004
+```txt
+RAM chip inside computer
 ```
 
-But:
-
-- Process A's address maps to one RAM location
-- Process B's address maps to another RAM location
-
-This mapping is managed using:
-
-- Page tables
-- MMU (Memory Management Unit)
-
 ---
 
-# Why Processes Cannot Access Each Other's Heap
+## Virtual Memory
 
-Because:
-
-- Memory isolation provides security
-- Prevents accidental corruption
-- Ensures process stability
-
-Each process has separate virtual memory mapping.
-
----
-
-# Shared Memory / mmap
-
-To share data between processes:
-
-We use:
-
-- Shared Memory
-- mmap (Memory Mapped Files)
-
----
-
-# How Shared Memory Works
-
-In shared memory:
-
-Multiple processes map their virtual memory addresses to the SAME physical RAM location.
+Every process gets its own "fake" address space.
 
 Example:
 
-```text
-Process A Virtual Address
-            ↓
-        Shared RAM Region
-            ↑
-Process B Virtual Address
+Process A:
+
+```txt
+Address 0x1000 -> Physical location X
 ```
 
-Now both processes can access same memory.
+Process B:
+
+```txt
+Address 0x1000 -> Physical location Y
+```
+
+Even though both see:
+
+```txt
+0x1000
+```
+
+They actually point to different physical locations.
+
+This mapping is maintained by:
+
+* OS
+* MMU (Memory Management Unit)
+
+using:
+
+* Page Tables
 
 ---
 
-# mmap (Memory Mapping)
+# 7. Why This Isolation Exists
+
+This isolation is VERY important.
+
+Otherwise:
+
+* one process could corrupt another process
+* one app could steal another app's data
+* system crashes would happen frequently
+
+Imagine:
+
+```txt
+Chrome changing WhatsApp memory
+```
+
+That would be disastrous.
+
+---
+
+# 8. Shared Memory / mmap
+
+You wrote:
+
+> solution is shared space in RAM called mmap/shared memory
+
+Correct idea.
+
+---
+
+## What is Shared Memory?
+
+OS allows multiple processes to map the same physical memory.
+
+So:
+
+```txt
+Process A Virtual Address ---> SAME Physical Memory
+Process B Virtual Address ---> SAME Physical Memory
+```
+
+Now both processes can access same data.
+
+---
+
+# 9. mmap (Memory Mapping)
 
 `mmap()` is a system call.
 
-It maps:
+It can:
 
-- File
-- Shared memory region
-
-directly into process virtual memory.
-
-Benefits:
-
-- Fast IPC (Inter Process Communication)
-- Avoids unnecessary copying
-- Efficient file access
-
----
-
-# Redis and Shared Memory
-
-Important Correction:
-
-Incorrect:
-
-```text
-All processes read Redis heap using shared memory
-```
-
-Correct:
-
-Redis runs as a separate server process.
-
-Other applications communicate with Redis via:
-
-- TCP sockets
-- Unix sockets
-
-NOT by directly accessing Redis heap memory.
-
----
-
-# Redis Architecture
-
-Redis generally:
-
-- Runs as a single main process
-- Uses event-driven architecture
-- Uses single-threaded command execution (core logic)
-
-Modern Redis versions also use helper threads for:
-
-- Networking
-- Background tasks
-- Persistence
-
----
-
-# Redis Persistence Problem
-
-Redis stores data in RAM.
-
-RAM is volatile.
-
-If power goes off:
-
-→ Data is lost.
-
-Therefore persistence becomes important.
-
----
-
-# Redis Persistence Mechanisms
-
-Redis uses:
-
-## 1. RDB (Snapshotting)
-
-Creates periodic snapshots of memory onto disk.
+* map files into memory
+* create shared memory between processes
 
 Example:
 
-```text
-dump.rdb
+```c
+mmap(...)
 ```
 
 ---
 
-## 2. AOF (Append Only File)
+# 10. Important Clarification About Redis
 
-Logs every write operation.
+You wrote:
+
+> all processes can read Redis heap using shared memory
+
+This is NOT exactly correct.
+
+Redis does NOT expose its heap directly.
+
+Instead:
+
+* Redis runs as a separate server process
+* Other applications communicate through:
+
+  * TCP sockets
+  * Unix sockets
 
 Example:
 
-```text
-SET user:1 Bhavya
+```txt
+NodeJS App ---> Redis Server
+Python App ---> Redis Server
+Java App ---> Redis Server
 ```
 
-This allows recovery after restart.
+They communicate through network/socket APIs.
+
+NOT by directly reading Redis heap memory.
 
 ---
 
-# Disk-Based Databases
+# 11. Redis is Mostly Single Threaded
 
-Unlike Redis:
+You wrote:
 
-Traditional databases store data primarily on disk.
+> mainly runs as a single main process
 
-Examples:
+Mostly correct.
 
-- PostgreSQL
-- MySQL
-- MongoDB (partially memory optimized)
+Modern Redis uses:
 
-Disk storage provides persistence.
+* single-threaded command execution
+* some background threads for:
+
+  * I/O
+  * persistence
+  * replication
+
+Why single-threaded?
+
+Because:
+
+* avoids locking complexity
+* RAM operations are already extremely fast
 
 ---
 
-# System Calls (Syscalls)
+# 12. Why Redis is Fast
 
-Processes cannot directly interact with hardware.
+Redis is fast because:
 
-When a process needs operations like:
+## Reason 1: RAM Access
 
-- Open file
-- Read file
-- Write file
-- Network access
+RAM latency:
 
-it requests the Kernel using:
+```txt
+~100 nanoseconds
+```
 
-## System Calls
+Disk latency:
 
-Example syscall:
+```txt
+SSD -> microseconds
+HDD -> milliseconds
+```
+
+Huge difference.
+
+---
+
+## Reason 2: No Complex Disk Reads
+
+Traditional DB:
+
+```txt
+Disk -> RAM -> Process
+```
+
+Redis:
+
+```txt
+RAM directly
+```
+
+No disk seek needed for normal operations.
+
+---
+
+# 13. Problem with Redis — Persistence
+
+Very important point.
+
+Since Redis stores data in RAM:
+
+```txt
+Power off = data loss
+```
+
+unless persistence is enabled.
+
+---
+
+# 14. Redis Persistence Mechanisms
+
+Redis solves persistence using:
+
+## AOF (Append Only File)
+
+Every write operation is appended to a log file.
+
+Example:
+
+```txt
+SET user Bhavya
+INCR count
+```
+
+After restart Redis replays commands.
+
+---
+
+## RDB Snapshots
+
+Redis periodically stores memory snapshot to disk.
+
+Example:
+
+```txt
+Dump complete memory every 5 minutes
+```
+
+---
+
+# 15. System Calls
+
+You wrote:
+
+> when process does not know how to open file it asks kernel
+
+Correct idea.
+
+Applications cannot directly access hardware.
+
+They request OS through:
+
+* System Calls (syscalls)
+
+Example:
 
 ```c
 open()
 read()
 write()
 mmap()
+socket()
 ```
 
 ---
 
-# Kernel and Operating System
+# 16. File Read Flow (Very Important)
 
-Kernel responsibilities:
+Your understanding is mostly correct.
 
-- Memory management
-- File system management
-- Process scheduling
-- Hardware interaction
-- Device management
+Let us cleanly structure it.
 
 ---
 
-# File Open Flow
+# 17. Reading a File — Complete Flow
 
-## Step-by-Step
+Suppose application wants:
 
-1. Process requests file access
-2. CPU switches to kernel mode
-3. Kernel checks filesystem
-4. Kernel communicates with storage device
-5. File data loaded into RAM
-
----
-
-# DMA (Direct Memory Access)
-
-Important concept.
-
-When copying data from:
-
-```text
-Disk → RAM
+```txt
+read("data.txt")
 ```
 
-CPU is NOT heavily involved in moving every byte.
-
-Instead:
-
-DMA controller/device drivers handle transfer.
-
 ---
 
-# Why DMA is Important
+## Step 1 — Process Requests Read
 
-Without DMA:
-
-CPU would become bottleneck.
-
-DMA improves:
-
-- Performance
-- Parallelism
-- CPU efficiency
-
----
-
-# Reading a File
-
-# Read Flow
-
-## Step 1
-
-Process requests:
+Application calls:
 
 ```c
-read(fd, buffer, size)
+read()
 ```
 
----
-
-## Step 2
-
-Kernel checks if data already exists in RAM page cache.
-
-If YES:
-
-→ Return quickly.
-
-If NO:
-
-→ Fetch from disk.
+This is a syscall.
 
 ---
 
-## Step 3
+## Step 2 — CPU Switches to Kernel Mode
 
-Disk transfers page into RAM using DMA.
-
----
-
-## Step 4
-
-Kernel copies requested bytes into process buffer.
+OS kernel takes control.
 
 ---
+
+## Step 3 — Kernel Checks Page Cache
+
+Before going to disk:
+
+OS checks:
+
+```txt
+"Is file already in RAM?"
+```
+
+inside:
 
 # Page Cache
 
-Disk data loaded into RAM is stored in:
+---
 
-## Page Cache
+# 18. What is Page Cache?
 
-Managed by kernel.
+Page cache is:
 
-Purpose:
+```txt
+RAM used by OS to cache disk pages
+```
 
-- Faster future reads
-- Avoid repeated disk access
+This is one of the MOST IMPORTANT optimizations in databases.
 
 ---
 
-# Pages and Blocks
+# 19. Pages and Blocks
 
-Storage devices work in fixed-size units.
+You wrote:
 
-Common page size:
+> hardware cannot get random 3 bytes
 
-```text
+Correct idea.
+
+Disk reads happen in blocks/pages.
+
+Typical page size:
+
+```txt
 4 KB
 ```
 
-Important:
+Even if you request:
 
-Even if process requests:
-
-```text
+```txt
 3 bytes
 ```
 
-Entire page may be loaded from disk.
+OS loads:
+
+```txt
+Entire 4 KB page
+```
+
+into page cache.
 
 ---
 
-# Example
+# 20. Why Read Entire Pages?
 
-Suppose file contains:
+Because disk hardware is optimized for block access.
 
-```text
-HELLO
-```
-
-Process requests:
-
-```text
-HEL
-```
-
-Disk still loads entire page into RAM page cache.
-
-Kernel then returns only requested bytes.
+Reading tiny bytes individually would be extremely slow.
 
 ---
 
-# Writing Data
-
-# Write Flow
+# 21. Example of Page Loading
 
 Suppose:
 
-```text
-HELLO
+```txt
+Page Size = 4 KB
 ```
 
-becomes:
+File contains:
 
-```text
-BYLLO
+```txt
+Users 0–100
+```
+
+User requests:
+
+```txt
+User 40
+```
+
+OS loads entire page in the page cache 
+
+Then returns only requested bytes to the process 
+
+---
+
+# 22. What if Page Not in Cache?
+
+This is called:
+
+# Cache Miss
+
+Then:
+
+```txt
+Disk -> RAM(Page Cache)
+```
+
+using DMA.
+
+---
+
+# 23. DMA (Direct Memory Access)
+
+You wrote:
+
+> copying does not go through CPU
+
+Partially correct.
+
+Better understanding:
+
+DMA allows hardware devices to transfer data directly to RAM without CPU copying every byte manually.
+basically the drivers does the work of tranvferring the dato from the disc to the page cache of the kernel 
+
+CPU still:
+
+* initiates operation
+* configures DMA controller
+
+But bulk transfer is handled by hardware.
+
+This reduces CPU overhead.
+
+---
+
+# 24. Disk Read Path Summary
+
+```txt
+Process
+   ↓
+System Call
+   ↓
+Kernel
+   ↓
+Check Page Cache
+   ↓
+(if miss)
+SSD/HDD → DMA → RAM(Page Cache)
+   ↓
+Kernel copies requested bytes
+   ↓
+Process receives data
 ```
 
 ---
 
+# 25. Writing Data — Complete Flow
+
+Your understanding is good.
+
+Suppose page contains:
+
+```txt
+HELLO
+```
+
+Process wants:
+
+```txt
+BYLLO
+```
+
+(Modify first bytes)
+
+---
+
+# 26. Write Flow
+
 ## Step 1
 
-Process modifies data.
+Process issues:
 
+```c
+write()
+```
+each process have its own mwmory and in that memory it changes the bytes and then makes a sys call to the kernel about the change  
 ---
 
 ## Step 2
 
-Kernel updates page cache in RAM.
+Kernel updates page inside page cache.
+
+NOT immediately on disk.
 
 ---
 
-## Step 3
+# 27. Dirty Pages
 
-Page marked as:
+Modified pages are marked:
 
-## Dirty Page
+# Dirty
 
 Meaning:
 
-RAM version differs from disk version.
+```txt
+RAM version != Disk version
+```
 
 ---
 
-## Step 4
+# 28. Flush to Disk
 
-Kernel later flushes dirty page to disk asynchronously.
+Later OS flushes dirty pages to disk.
 
-Important:
+This is asynchronous.
 
-Disk writes are often NOT immediate.
+OS decides timing based on:
 
-OS schedules them based on:
-
-- Load
-- Performance optimization
-- IO scheduling
+* load
+* memory pressure
+* scheduling
 
 ---
 
-# Synchronous vs Asynchronous Writes
+# 29. Why Async Writes are Faster
 
-## Synchronous
+If every write waited for disk:
 
-Write completes only after disk update.
+```txt
+Application becomes very slow
+```
 
-Safer but slower.
+Instead:
+
+```txt
+Write to RAM quickly
+Flush later
+```
+
+Huge performance boost.
 
 ---
 
-## Asynchronous
+# 30. HDD vs SSD
 
-Write acknowledged before actual disk write completes.
+Your notes mixed SSD and HDD a little.
 
-Faster but slight risk if crash happens before flush.
+Let us fix that.
 
 ---
 
-# HDD vs SSD
-
-# HDD (Hard Disk Drive)
+# 31. HDD (Hard Disk Drive)
 
 Uses:
 
-- Spinning magnetic disks
-- Mechanical read/write heads
+* spinning magnetic platters
+* mechanical arm
 
-Latency:
+Operations require:
 
-~5–10 milliseconds
+* seek time
+* rotational latency
 
-Problems:
+Typical latency:
 
-- Mechanical delay
-- Slower random access
+```txt
+5–10 ms
+```
+
+Slow because mechanical movement exists.
 
 ---
 
-# SSD (Solid State Drive)
-
-Uses flash memory.
+# 32. SSD (Solid State Drive)
 
 No moving parts.
 
-Benefits:
+Uses:
 
-- Faster random access
-- Lower latency
-- Better durability
+* flash memory
 
----
+Very fast random access.
 
-# Important Correction
+Latency:
 
-Incorrect:
-
-```text
-SSD uses clockwise mechanism
+```txt
+microseconds
 ```
 
-Correct:
-
-HDD uses rotating disks.
-
-SSD uses flash memory cells.
-
-No spinning components.
+Much faster than HDD.
 
 ---
 
-# Blocks, Pages and Random Access
+# 33. Database Optimization Goal
 
-SSD organizes data internally into:
+Excellent point from your notes.
 
-- Pages
-- Blocks
+Most DB optimization is about:
 
-It can access locations much faster than HDD.
+# Reducing Disk I/O
 
-Not exactly binary search internally, but much more efficient random access.
+Because:
 
----
-
-# Database Optimization Insight
-
-Very important optimization principle:
-
-```text
-Disk access is expensive
+```txt
+RAM is fast
+Disk is slow
 ```
 
-Good databases optimize:
+Databases try to:
 
-- Reducing disk reads
-- Efficient caching
-- Efficient page replacement
-- Sequential IO
-
----
-
-# Page Cache Example
-
-Suppose page cache can store:
-
-- Page 1 → Users 0–100
-- Page 2 → Users 101–200
+* cache aggressively
+* reduce page fetches
+* optimize reads/writes
 
 ---
 
-## Case 1
+# 34. Page Cache Example
+
+Suppose page cache can hold:
+
+```txt
+2 pages
+```
+
+Pages:
+
+```txt
+Page1 -> Users 0–100
+Page2 -> Users 100–200
+```
 
 Request:
 
-```text
+```txt
 User 40
 ```
 
-Already in Page 1.
+Fast.
 
-Result:
-
-→ Fast memory access.
+Already in RAM.
 
 ---
 
-## Case 2
+# 35. Cache Miss Example
 
-Request:
+Now request:
 
-```text
+```txt
 User 300
 ```
 
-Not in cache.
+Need:
 
-Then:
+```txt
+Page3
+```
 
-1. Existing page evicted
-2. Page containing User 300 loaded from disk
-3. Stored in page cache
-4. Data returned
+But cache full.
 
----
+So OS evicts one page.
 
-# Eviction Policies
-
-When cache becomes full:
-
-Some page must be removed.
-
-This is called:
-
-## Eviction
+Then loads Page3 from disk.
 
 ---
 
-# Common Eviction Policies
+# 36. Eviction Policies
 
-# LRU (Least Recently Used)
+Very important topic.
 
-Remove least recently accessed item.
+Eviction policy decides:
 
-Most common.
+```txt
+Which page should be removed?
+```
 
----
+Common algorithms:
 
-# LFU (Least Frequently Used)
-
-Remove least frequently accessed item.
-
----
-
-# FIFO
-
-First inserted removed first.
-
----
-
-# Why Eviction Policies Matter
-
-Bad eviction policy:
-
-- More disk reads
-- Lower performance
-
-Good eviction policy:
-
-- Better cache hit ratio
-- Faster database
-
-Very important in DBMS design.
+| Policy | Meaning               |
+| ------ | --------------------- |
+| LRU    | Least Recently Used   |
+| LFU    | Least Frequently Used |
+| FIFO   | First In First Out    |
+| CLOCK  | Approximate LRU       |
 
 ---
 
-# Storage Engine
+# 37. Important DB Design Insight
 
-A storage engine is the component responsible for:
+You wrote:
 
-- Reading data
-- Writing data
-- Indexing
-- Caching
-- Disk management
-- Concurrency handling
+> design your own eviction policy
 
-Examples:
+Very important insight.
 
-| Database | Storage Engine |
-|---|---|
-| MySQL | InnoDB |
-| MongoDB | WiredTiger |
-| Redis | In-memory structures |
-| PostgreSQL | Custom engine |
+Many databases implement custom caching because:
+
+* OS page cache may not be optimal
+* DB understands access patterns better
+
+Example:
+
+* PostgreSQL has shared buffers
+* InnoDB has buffer pool
 
 ---
 
-# Final Important Concepts
+# 38. mmap vs Traditional Read
 
-| Concept | Meaning |
-|---|---|
-| Redis | In-memory KV database |
-| Heap | Dynamic RAM memory |
-| Shared Memory | Shared RAM region between processes |
-| mmap | Maps memory/file into process space |
-| DMA | Direct disk-to-RAM transfer |
-| Page Cache | Kernel RAM cache for disk pages |
-| Dirty Page | RAM page modified but not flushed |
-| Eviction | Removing pages from cache |
-| Storage Engine | DB component managing storage |
+Traditional read:
+
+```txt
+Disk -> Page Cache -> Process Buffer
+```
+
+Extra copy exists.
+
+---
+
+Using mmap:
+
+```txt
+Disk Page mapped directly into process virtual memory
+```
+
+Potentially fewer copies.
+
+Very important optimization in DB systems.
+
+---
+
+# 39. Final Big Picture
+
+# Full Architecture Flow
+
+```txt
+Application Process
+       ↓
+System Calls
+       ↓
+Kernel / OS
+       ↓
+Page Cache (RAM)
+       ↓
+DMA / Drivers
+       ↓
+SSD / HDD
+```
+
+---
+
+# 40. Final Core Concepts to Remember
+
+## Redis
+
+* In-memory DB
+* Extremely fast
+* Uses RAM
+* Needs persistence mechanisms
+
+---
+
+## Heap vs Stack
+
+* Stack → local variables/functions
+* Heap → dynamic memory
+* Heap is NOT persistent
+
+---
+
+## Virtual Memory
+
+* Every process gets isolated memory
+* Processes cannot access each other directly
+
+---
+
+## Shared Memory / mmap
+
+* Multiple processes can share same physical memory
+
+---
+
+## Page Cache
+
+* OS caches disk pages in RAM
+* Huge performance optimization
+
+---
+
+## DMA
+
+* Hardware-assisted memory transfer
+* Reduces CPU overhead
+
+---
+
+## Dirty Pages
+
+* Modified RAM pages not yet written to disk
+
+---
+
+## SSD vs HDD
+
+* SSD much faster
+* Databases optimize to reduce disk access
+
+---
+
+# 41. One Important Interview-Level Insight
+
+Many beginners think:
+
+```txt
+Database speed = CPU speed
+```
+
+Wrong.
+
+Usually:
+
+# Database performance bottleneck = Disk I/O
+
+That is why:
+
+* caching
+* indexing
+* page cache
+* buffer pools
+* Redis
+* mmap
+* SSD optimization
+
+all exist.
+
+---
+
+# 42. One Small Correction About “Persistence”
+
+You associated:
+
+```txt
+Heap = persistent
+```
+
+Correct mental model:
+
+| Storage | Persistent? |
+| ------- | ----------- |
+| Stack   | ❌           |
+| Heap    | ❌           |
+| RAM     | ❌           |
+| SSD/HDD | ✅           |
+
+Persistence means:
+
+```txt
+Data survives reboot/crash
+```
