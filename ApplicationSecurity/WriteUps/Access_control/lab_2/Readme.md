@@ -1,17 +1,17 @@
-# Lab: Unprotected Admin Functionality
+# Lab: Unprotected Admin Functionality with Unpredictable URL
 
 ## Lab Information
 
 * **Category:** Access Control
 * **Level:** Apprentice
-* **Lab:** Unprotected Admin Functionality
+* **Lab:** Unprotected Admin Functionality with Unpredictable URL
 * **Status:** Solved
 
 ---
 
 ## Objective
 
-Gain access to an unprotected administrator panel and delete the user:
+Identify a hidden administrator panel exposed through client-side code and use it to delete the user:
 
 ```text
 carlos
@@ -21,59 +21,59 @@ carlos
 
 ## Vulnerability Overview
 
-The application exposes administrative functionality without implementing proper access control.
+The application attempts to hide administrative functionality by placing it at an unpredictable URL.
 
-Sensitive administrative endpoints are disclosed through the `robots.txt` file, allowing an attacker to directly access privileged functionality.
+However, the URL is disclosed within the application's source code, making it discoverable by any user. Since the administrator panel lacks proper access controls, an attacker can directly access privileged functionality.
 
 ---
 
 ## Exploitation Steps
 
-### 1. Discover Hidden Administrative Endpoint
+### 1. Review the Application Source Code
 
-The `robots.txt` file was accessed:
-
-```text
-/robots.txt
-```
-
-The file disclosed a restricted administrative path:
+The homepage source code was inspected using:
 
 ```text
-Disallow: /administrator-panel
+Ctrl + U
 ```
+
+Within the JavaScript code, the hidden administrator panel URL was disclosed:
+
+```javascript
+adminPanelTag.setAttribute('href', '/admin-z691va');
+```
+
+This revealed the location of the administrative interface.
 
 ### Screenshot
 
-![robots.txt](images/robots.txt.png)
+![Source Code Disclosure](images/source_code_admin_url.png)
 
 ---
 
 ### 2. Access the Administrator Panel
 
-The disclosed endpoint was visited directly:
+Using the discovered path, the administrator panel was accessed directly:
 
 ```text
-/administrator-panel
+/admin-z691va
 ```
 
-The application allowed unrestricted access to the administrator interface.
-
-### Screenshot
-
-![Admin Panel](images/admin_panel.png)
+The application granted unrestricted access to administrative functionality.
 
 ---
 
 ### 3. Delete the Target User
 
-Within the administrator panel, the user:
+The administrator interface contained user management functionality.
+
+The user:
 
 ```text
 carlos
 ```
 
-was located and deleted using the available administrative functionality.
+was located and deleted through the exposed administration panel.
 
 ---
 
@@ -91,28 +91,28 @@ The target user was successfully deleted and the lab was marked as solved.
 
 An attacker can:
 
-* Access sensitive administrative functionality.
-* Perform privileged operations without authentication.
-* Modify or delete application data.
-* Compromise the integrity of the application.
+* Discover hidden administrative functionality.
+* Bypass intended restrictions.
+* Access privileged operations.
+* Modify or delete sensitive application data.
 
 ---
 
 ## Remediation
 
-* Implement server-side authorization checks on all administrative endpoints.
-* Do not rely on obscurity or hidden URLs for security.
-* Restrict access to administrative functionality based on user roles.
-* Regularly audit exposed endpoints and sensitive resources.
+* Enforce server-side authorization checks on all administrative endpoints.
+* Do not rely on hidden or unpredictable URLs for security.
+* Restrict privileged functionality using role-based access control.
+* Remove sensitive administrative references from client-side code.
 
 ---
 
 ## Key Learning Points
 
-* Administrative endpoints must always enforce authorization.
-* `robots.txt` should never contain sensitive paths.
-* Hidden URLs are not a security control.
-* Access control must be validated on every request.
+* Hidden URLs are not an access control mechanism.
+* Client-side code should never contain sensitive administrative paths.
+* Authorization must always be validated on the server.
+* Security through obscurity should never be relied upon.
 
 ---
 
