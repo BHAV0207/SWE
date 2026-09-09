@@ -1,0 +1,11 @@
+Rules so far
+
+1) Entity test — does this thing have its own identity and lifecycle, separate from what it's related to? Can it be created/updated/deleted at its own time? If yes, it's a table.
+2) Sparse-table / single-responsibility test — if putting two kinds of facts in one table means most rows have a bunch of columns sitting empty, split them. Each table should do one job (this is what killed candidate_profile-as-columns-on-users).
+3) Ownership/writer test — who writes to this data, how often, and on whose schedule? If two independent processes write to it at unpredictable times, that's a sign it doesn't belong squeezed into someone else's row.
+4) Foreign key placement — in a one-to-many relationship, the foreign key always lives on the "many" side, pointing at the "one" side's id. The "one" side never stores a list of its children — that's a query, not stored data.
+5) Column count is not a legitimacy test — a two-column table (topic) is just as valid as a ten-column one. What makes a table real is the entity test, not how "substantial" it looks.
+6) No speculative generality — don't add structure for a future that isn't in the actual product scope (check docs like your own "V0 scope" sheet). Adding a column later is cheap; ripping one out after data depends on it is expensive.
+7) Variable-count rule — if the number of these-per-parent is open-ended (could be 0, could be 8), that's a hard signal it needs its own table. You can't encode an unknown quantity as fixed columns.
+8) bundle vs. individually-queryable. Variable count only forces a separate table when you'll need to reference, filter, or join those items individually elsewhere in the system. If the whole variable-length thing is always read and written together as one unit, and nothing else in the product ever needs to grab just one item out of it on its own, a JSON/array column is fine.
+9) Many-to-many needs a junction table — two foreign keys, one to each side, each row representing one specific pairing. Sometimes a table you already have for other reasons naturally holds both foreign keys already (like session_turn does) — that's called an associative entity, and you don't need to invent a separate junction table for it.
