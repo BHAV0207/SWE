@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import logging
 import socket
-from typing import Callable
+import time
+from email.utils import formatdate
+from typing import Callable, Optional
 
 from .config import ServerConfig
 from .http_types import HTTP_1_0, ProtocolError, Request, Response
@@ -41,8 +43,10 @@ class Connection:
         try:
             while self._serve_one():
                 requests_served += 1
-        except (ConnectionResetError, BrokenPipeError):
+        except ConnectionError:
             log.info("%s reset the connection", self._peer)
+        except socket.timeout:
+            log.info("%s stopped reading; response not delivered in time", self._peer)
         finally:
             log.info("%s closed after %d request(s)", self._peer, requests_served)
             self._close_gracefully()
@@ -63,19 +67,33 @@ class Connection:
             self._send(Response.text(408, "request not received in time"), keep_alive=False)
             return False
 
-        response = self._handler(request)
+        response = self._handle(request)
         keep_alive = _client_wants_keep_alive(request)
         log.info("%s %s %s -> %d", self._peer, request.method, request.target, response.status)
-        self._send(response, keep_alive, http_1_0_client=request.version == HTTP_1_0)
+        self._send(response, keep_alive, request)
         return keep_alive
 
-    def _send(self, response: Response, keep_alive: bool, http_1_0_client: bool = False) -> None:
+    def _handle(self, request: Request) -> Response:
+        # The request was framed correctly, so even if the handler has a bug
+        # we can answer it and carry on with the next one.
+        try:
+            return self._handler(request)
+        except Exception:
+            log.exception("%s handler failed for %s %s", self._peer, request.method, request.target)
+            return Response.text(500, "internal server error")
+
+    def _send(self, response: Response, keep_alive: bool, request: Optional[Request] = None) -> None:
+        response.headers.add("Date", formatdate(usegmt=True))
         if not keep_alive:
             response.headers.add("Connection", "close")
-        elif http_1_0_client:
+        elif request is not None and request.version == HTTP_1_0:
             # 1.0 clients close by default; tell them we are not.
             response.headers.add("Connection", "keep-alive")
-        self._sock.sendall(response.serialize())
+        include_body = request is None or request.method != "HEAD"
+        # Reads leave the socket timeout at whatever their deadline had left,
+        # so every send sets its own.
+        self._sock.settimeout(self._config.send_timeout_seconds)
+        self._sock.sendall(response.serialize(include_body))
 
     def _close_gracefully(self) -> None:
         """Half-close, drain, then close.
@@ -84,11 +102,16 @@ class Connection:
         RST, which can destroy our last response before the client reads it.
         Shutting down our write side first and draining briefly avoids that.
         """
+        deadline = time.monotonic() + _LINGER_SECONDS
         try:
             self._sock.shutdown(socket.SHUT_WR)
-            self._sock.settimeout(_LINGER_SECONDS)
-            while self._sock.recv(4096):
-                pass
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                self._sock.settimeout(remaining)
+                if not self._sock.recv(4096):
+                    break
         except OSError:
             pass
         finally:

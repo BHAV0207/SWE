@@ -1,9 +1,11 @@
 """End-to-end tests against a real server on an ephemeral port."""
 
+import socket
 import threading
 import time
 import unittest
 
+from calc_server.app import handle_request
 from calc_server.config import ServerConfig
 from calc_server.server import CalculatorServer
 from tests.http_client import RawClient
@@ -26,9 +28,12 @@ def _request_bytes(method: str, target: str) -> bytes:
 
 
 class ServerTestCase(unittest.TestCase):
+    config = TEST_CONFIG
+    handler = staticmethod(handle_request)
+
     @classmethod
     def setUpClass(cls):
-        cls.server = CalculatorServer(TEST_CONFIG)
+        cls.server = CalculatorServer(cls.config, cls.handler)
         cls.server.bind()
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
@@ -84,7 +89,24 @@ class FeatureSetTest(ServerTestCase):
 
     def test_405_advertises_allowed_methods(self):
         self.client.send(_request_bytes("POST", "/add"))
-        self.assertEqual(self.client.read_response().headers["allow"], "GET")
+        self.assertEqual(self.client.read_response().headers["allow"], "GET, HEAD")
+
+    def test_head_sends_headers_without_body(self):
+        self.client.send(_request_bytes("HEAD", "/mul?a=6&b=7"))
+        response = self.client.read_response_head()
+        self.assertEqual((response.status, response.headers["content-length"]), (200, "2"))
+        # If the body had been sent, it would be mistaken for this response.
+        self.assertEqual(self.client.get("/add?a=2&b=3").body, b"5")
+
+    def test_path_must_be_origin_form(self):
+        self.assertEqual(self.client.get("add?a=2&b=3").status, 404)
+
+    def test_responses_carry_a_date(self):
+        self.assertIn("date", self.client.get("/add?a=1&b=1").headers)
+
+    def test_bare_lf_client_is_answered(self):
+        self.client.send(b"GET /add?a=2&b=3 HTTP/1.1\nHost: localhost\n\n")
+        self.assertEqual(self.client.read_response().body, b"5")
 
 
 class FramingTest(ServerTestCase):
@@ -136,6 +158,54 @@ class ConnectionLifecycleTest(ServerTestCase):
         response = self.client.read_response()
         self.assertEqual(response.status, 408)
         self.assertTrue(self.client.is_closed_by_peer())
+
+
+
+def _crashing_handler(request):
+    if "crash" in request.target:
+        raise RuntimeError("bug in handler")
+    return handle_request(request)
+
+
+class HandlerFailureTest(ServerTestCase):
+    handler = staticmethod(_crashing_handler)
+
+    def test_handler_bug_gives_500_and_connection_survives(self):
+        self.assertEqual(self.client.get("/crash").status, 500)
+        self.assertEqual(self.client.get("/add?a=2&b=3").body, b"5")
+
+
+class CapacityTest(ServerTestCase):
+    config = ServerConfig(host="127.0.0.1", port=0, max_connections=1)
+
+    def test_connection_over_the_cap_gets_503(self):
+        self.client.get("/add?a=1&b=1")  # self.client holds the only slot
+        extra = RawClient(self.server.address)
+        try:
+            response = extra.read_response()
+            self.assertEqual(response.status, 503)
+            self.assertTrue(extra.is_closed_by_peer())
+        finally:
+            extra.close()
+
+
+class DualStackTest(unittest.TestCase):
+    def test_localhost_listens_on_every_address_it_resolves_to(self):
+        server = CalculatorServer(ServerConfig(host="localhost", port=0))
+        server.bind()
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            port = server.address[1]
+            families = {info[0] for info in socket.getaddrinfo("localhost", port, type=socket.SOCK_STREAM)}
+            for family in families:
+                with self.subTest(family=family.name):
+                    client = RawClient(socket.getaddrinfo("localhost", port, family, socket.SOCK_STREAM)[0][4][:2])
+                    self.assertEqual(client.get("/add?a=2&b=3").body, b"5")
+                    client.close()
+        finally:
+            server.stop()
+            thread.join(timeout=2)
 
 
 if __name__ == "__main__":

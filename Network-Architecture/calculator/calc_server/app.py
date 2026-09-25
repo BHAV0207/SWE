@@ -20,7 +20,8 @@ from .arithmetic import (
 )
 from .http_types import HTTP_1_1, Request, Response
 
-ALLOWED_METHODS = ("GET",)
+# HEAD is GET without the body; RFC 9110 9.1 requires servers to support both.
+ALLOWED_METHODS = ("GET", "HEAD")
 OPERAND_NAMES = ("a", "b")
 
 
@@ -31,7 +32,7 @@ def handle_request(request: Request) -> Response:
         return Response.text(400, "exactly one Host header is required")
 
     url = urlsplit(request.target)
-    operation = url.path.lstrip("/")
+    operation = url.path[1:] if url.path.startswith("/") else None
     if operation not in OPERATIONS:
         return Response.text(404, f"no such operation: {url.path}")
 

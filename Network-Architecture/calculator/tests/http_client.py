@@ -27,14 +27,19 @@ class RawClient:
         return self.read_response()
 
     def read_response(self) -> ParsedResponse:
+        response = self.read_response_head()
+        response.body = self._read_exact(int(response.headers["content-length"]))
+        return response
+
+    def read_response_head(self) -> ParsedResponse:
+        """Status and headers only; for HEAD responses, which have no body."""
         head = self._read_until(b"\r\n\r\n").decode("latin-1")
         status_line, *header_lines = head[:-4].split("\r\n")
         headers = {}
         for line in header_lines:
             name, _, value = line.partition(":")
             headers[name.strip().lower()] = value.strip()
-        body = self._read_exact(int(headers["content-length"]))
-        return ParsedResponse(int(status_line.split(" ")[1]), headers, body)
+        return ParsedResponse(int(status_line.split(" ")[1]), headers, b"")
 
     def is_closed_by_peer(self) -> bool:
         """True if the server has closed its side (recv returns EOF)."""

@@ -20,19 +20,19 @@ from .config import ServerConfig
 from .http_types import HTTP_1_0, HTTP_1_1, Headers, ProtocolError, Request
 from .socket_buffer import SocketBuffer
 
-CRLF = b"\r\n"
-END_OF_HEAD = b"\r\n\r\n"
+LF = b"\n"
+CR = b"\r"
 
 _TOKEN = r"[!#$%&'*+\-.^_`|~0-9A-Za-z]+"
-_REQUEST_LINE = re.compile(rf"^({_TOKEN}) (\S+) (HTTP/\d\.\d)$")
+_REQUEST_LINE = re.compile(rf"^({_TOKEN}) (\S+) HTTP/(\d)\.(\d)$")
 _HEADER_NAME = re.compile(rf"^{_TOKEN}$")
 _CHUNK_SIZE = re.compile(r"^([0-9A-Fa-f]+)(;.*)?$")
-_SUPPORTED_VERSIONS = (HTTP_1_0, HTTP_1_1)
+# Upper bound on a single chunk-size line; real ones are a handful of bytes.
+_MAX_CHUNK_LINE_BYTES = 1024
 
 
 def read_request(buffer: SocketBuffer, config: ServerConfig) -> Request:
-    head = _read_head(buffer, config.max_header_bytes)
-    request_line, *header_lines = head.split("\r\n")
+    request_line, *header_lines = _read_head_lines(buffer, config.max_header_bytes)
 
     method, target, version = _parse_request_line(request_line)
     headers = _parse_headers(header_lines)
@@ -40,16 +40,33 @@ def read_request(buffer: SocketBuffer, config: ServerConfig) -> Request:
     return Request(method=method, target=target, version=version, headers=headers, body=body)
 
 
-def _read_head(buffer: SocketBuffer, max_bytes: int) -> str:
-    # RFC 9112 2.2: ignore empty lines received before a request-line,
-    # e.g. a stray CRLF some clients send after a body.
+def _read_head_lines(buffer: SocketBuffer, max_bytes: int) -> List[str]:
+    """Read the request line and header lines, up to the empty line."""
+    lines: List[str] = []
+    budget = max_bytes
     while True:
-        raw = buffer.read_until(END_OF_HEAD, max_bytes, too_long_status=431)
-        head = raw[: -len(END_OF_HEAD)].lstrip(b"\r\n")
-        if head:
-            break
+        raw = buffer.read_until(LF, budget, too_long_status=431)
+        budget -= len(raw)
+        line = _decode_line(raw)
+        if line:
+            lines.append(line)
+        elif lines:
+            return lines
+        # An empty line before the request line is ignored (RFC 9112 2.2),
+        # e.g. a stray CRLF some clients send after a body.
+
+
+def _decode_line(raw: bytes) -> str:
+    """Strip the line ending. CRLF is canonical; a bare LF is accepted too
+    (RFC 9112 2.2 allows it). A bare CR anywhere else is rejected, because
+    parsers that disagree about CR are how requests get smuggled."""
+    line = raw[: -len(LF)]
+    if line.endswith(CR):
+        line = line[: -len(CR)]
+    if CR in line or b"\0" in line:
+        raise ProtocolError(400, "bare CR or NUL in request head")
     try:
-        return head.decode("ascii")
+        return line.decode("ascii")
     except UnicodeDecodeError:
         raise ProtocolError(400, "request head is not ASCII") from None
 
@@ -58,9 +75,12 @@ def _parse_request_line(line: str) -> Tuple[str, str, str]:
     match = _REQUEST_LINE.match(line)
     if not match:
         raise ProtocolError(400, f"malformed request line: {line!r}")
-    method, target, version = match.groups()
-    if version not in _SUPPORTED_VERSIONS:
-        raise ProtocolError(505, f"unsupported version {version}")
+    method, target, major, minor = match.groups()
+    if major != "1":
+        raise ProtocolError(505, f"unsupported version HTTP/{major}.{minor}")
+    # A higher 1.x minor version is processed as the highest we implement
+    # (RFC 9110 2.5), so HTTP/1.2 is treated as HTTP/1.1.
+    version = HTTP_1_0 if minor == "0" else HTTP_1_1
     return method, target, version
 
 
@@ -116,15 +136,15 @@ def _read_chunked_body(buffer: SocketBuffer, max_bytes: int) -> bytes:
         if len(body) + size > max_bytes:
             raise ProtocolError(413, "chunked body exceeds limit")
         body += buffer.read_exact(size)
-        if buffer.read_exact(len(CRLF)) != CRLF:
-            raise ProtocolError(400, "chunk data not followed by CRLF")
+        if _read_line(buffer, max_bytes=len(CR + LF)):
+            raise ProtocolError(400, "chunk data not followed by a line ending")
     _discard_trailers(buffer, max_bytes)
     return bytes(body)
 
 
 def _read_chunk_size(buffer: SocketBuffer) -> int:
-    line = buffer.read_until(CRLF, max_bytes=1024)[: -len(CRLF)]
-    match = _CHUNK_SIZE.match(line.decode("ascii", errors="replace"))
+    line = _read_line(buffer, _MAX_CHUNK_LINE_BYTES)
+    match = _CHUNK_SIZE.match(line)
     if not match:
         raise ProtocolError(400, f"malformed chunk size line: {line!r}")
     return int(match.group(1), 16)
@@ -132,5 +152,9 @@ def _read_chunk_size(buffer: SocketBuffer) -> int:
 
 def _discard_trailers(buffer: SocketBuffer, max_bytes: int) -> None:
     # Trailer fields end with an empty line; we have no use for them.
-    while buffer.read_until(CRLF, max_bytes) != CRLF:
+    while _read_line(buffer, max_bytes):
         pass
+
+
+def _read_line(buffer: SocketBuffer, max_bytes: int) -> str:
+    return _decode_line(buffer.read_until(LF, max_bytes))

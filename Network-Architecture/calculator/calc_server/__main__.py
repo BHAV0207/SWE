@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 
 from .config import ServerConfig
 from .server import CalculatorServer
@@ -20,6 +21,10 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     config = ServerConfig(host=args.host, port=args.port, idle_timeout_seconds=args.idle_timeout)
     server = CalculatorServer(config)
+    try:
+        server.bind()
+    except OSError as error:
+        sys.exit(f"cannot listen on {config.host}:{config.port}: {error}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

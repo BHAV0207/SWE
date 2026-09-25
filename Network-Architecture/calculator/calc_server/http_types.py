@@ -16,7 +16,9 @@ REASON_PHRASES = {
     408: "Request Timeout",
     413: "Content Too Large",
     431: "Request Header Fields Too Large",
+    500: "Internal Server Error",
     501: "Not Implemented",
+    503: "Service Unavailable",
     505: "HTTP Version Not Supported",
 }
 
@@ -75,7 +77,8 @@ class Response:
         response.headers.add("Content-Type", "text/plain; charset=utf-8")
         return response
 
-    def serialize(self) -> bytes:
+    def serialize(self, include_body: bool = True) -> bytes:
+        """Wire bytes. include_body=False is for HEAD: same headers, no body."""
         reason = REASON_PHRASES.get(self.status, "Unknown")
         lines = [f"{HTTP_1_1} {self.status} {reason}"]
         lines += [f"{name}: {value}" for name, value in self.headers]
@@ -83,7 +86,7 @@ class Response:
         # find the end of this response without us hanging up.
         lines.append(f"Content-Length: {len(self.body)}")
         head = "\r\n".join(lines) + "\r\n\r\n"
-        return head.encode("latin-1") + self.body
+        return head.encode("latin-1") + (self.body if include_body else b"")
 
 
 class ProtocolError(Exception):

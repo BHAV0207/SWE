@@ -63,6 +63,19 @@ class RequestParserTest(unittest.TestCase):
         self.feed(b"\r\n\r\nGET /add HTTP/1.1\r\nHost: x\r\n\r\n")
         self.assertEqual(read_request(self.buffer, CONFIG).target, "/add")
 
+    def test_bare_lf_line_endings_are_accepted(self):
+        self.feed(b"GET /add HTTP/1.1\nHost: x\n\nGET /sub HTTP/1.1\r\nHost: x\r\n\r\n")
+        self.assertEqual(read_request(self.buffer, CONFIG).headers.get("Host"), "x")
+        self.assertEqual(read_request(self.buffer, CONFIG).target, "/sub")
+
+    def test_chunked_body_with_bare_lf(self):
+        self.feed(b"POST / HTTP/1.1\nTransfer-Encoding: chunked\n\n3\nabc\n0\n\n")
+        self.assertEqual(read_request(self.buffer, CONFIG).body, b"abc")
+
+    def test_higher_minor_version_is_treated_as_1_1(self):
+        self.feed(b"GET / HTTP/1.2\r\nHost: x\r\n\r\n")
+        self.assertEqual(read_request(self.buffer, CONFIG).version, "HTTP/1.1")
+
     def assert_protocol_error(self, data: bytes, status: int):
         self.feed(data)
         with self.assertRaises(ProtocolError) as caught:
@@ -74,6 +87,9 @@ class RequestParserTest(unittest.TestCase):
 
     def test_unsupported_version(self):
         self.assert_protocol_error(b"GET / HTTP/2.0\r\nHost: x\r\n\r\n", 505)
+
+    def test_bare_cr_is_rejected(self):
+        self.assert_protocol_error(b"GET / HTTP/1.1\r\nHost: x\rX-Evil: y\r\n\r\n", 400)
 
     def test_space_before_colon_is_rejected(self):
         self.assert_protocol_error(b"GET / HTTP/1.1\r\nHost : x\r\n\r\n", 400)
