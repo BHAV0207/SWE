@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+"""./bcurl [-v] [-I] HOST:PORT/PATH [/PATH ...]"""
+import sys
+
+from bhp.curl_cli import main
+
+sys.exit(main())
