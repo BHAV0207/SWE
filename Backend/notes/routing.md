@@ -339,13 +339,3 @@ Avoid excessive nesting:
 Too much nesting reduces readability.
 
 ---
-
-# Quick Revision Summary
-
-| Concept | Example | Purpose |
-|---|---|---|
-| Basic Route | `/api/books` | Resource access |
-| Path Parameter | `/books/123` | Identify specific resource |
-| Query Parameter | `?page=2` | Filtering/searching |
-| Nested Route | `/users/1/books/2` | Resource relationship |
-| Versioning | `/api/v1/users` | Backward compatibility |
